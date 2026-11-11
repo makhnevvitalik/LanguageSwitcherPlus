@@ -80,7 +80,7 @@ Open **Text actions → Shortcuts → Configure…** to assign shortcuts. Suppor
 
 - **Once** — press and release the shortcut once. Example: press and release `⇧⌥`.
 - **Twice** — press and release the entire shortcut twice. Example: press `⇧⌥`, release it, then press and release `⇧⌥` again.
-- **Hold + twice** — hold one key and tap the other twice. Example: hold `⇧` and tap `⌥` twice.
+- **Hold + twice** — hold one or more modifier keys and tap another modifier or a function key (F1–F20) twice. For example, hold `⇧` and tap `⌥` twice, or hold `⇧⌥` and tap `F2` twice.
 
 Which key you hold matters: holding `⇧` and tapping `⌥` is different from holding `⌥` and tapping `⇧`.
 
@@ -162,7 +162,7 @@ Language Switcher Plus требует macOS 12 или новее.
 
 - **Один раз** — один раз нажмите и отпустите сочетание. Пример: нажмите и отпустите `⇧⌥`.
 - **Дважды** — дважды полностью нажмите и отпустите сочетание. Пример: нажмите `⇧⌥`, отпустите, затем снова нажмите и отпустите `⇧⌥`.
-- **Удержание + двойное нажатие** — удерживайте одну клавишу и дважды нажмите вторую. Пример: удерживайте `⇧` и дважды нажмите `⌥`.
+- **Удержание + двойное нажатие** — удерживайте один или несколько модификаторов и дважды нажмите другой модификатор или функциональную клавишу (F1–F20). Например, удерживайте `⇧` и дважды нажмите `⌥` или удерживайте `⇧⌥` и дважды нажмите `F2`.
 
 Важно, какую клавишу вы удерживаете: удерживать `⇧` и нажимать `⌥` — не то же самое, что удерживать `⌥` и нажимать `⇧`.
 
