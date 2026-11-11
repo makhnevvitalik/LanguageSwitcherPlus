@@ -6,11 +6,11 @@ import XCTest
 
 final class KeyboardLayoutConverterTests: XCTestCase {
     func testConvertsCharactersByPhysicalKeyPairs() {
-        let map = KeyboardLayoutMap(pairs: [
+        let map = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "q", target: "й"),
             KeyboardLayoutPair(source: "Q", target: "Й"),
             KeyboardLayoutPair(source: "w", target: "ц")
-        ])
+        ]])
 
         XCTAssertEqual(
             KeyboardLayoutConverter.convert("Qw q!\n42", using: map),
@@ -19,9 +19,9 @@ final class KeyboardLayoutConverterTests: XCTestCase {
     }
 
     func testPreservesUnknownCharactersAndExtendedGraphemes() {
-        let map = KeyboardLayoutMap(pairs: [
+        let map = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "a", target: "ф")
-        ])
+        ]])
 
         XCTAssertEqual(
             KeyboardLayoutConverter.convert("aé 👨‍👩‍👧", using: map),
@@ -30,20 +30,20 @@ final class KeyboardLayoutConverterTests: XCTestCase {
     }
 
     func testOmitsAmbiguousSourceCharacter() {
-        let map = KeyboardLayoutMap(pairs: [
+        let map = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "x", target: "ч"),
             KeyboardLayoutPair(source: "x", target: "ь")
-        ])
+        ]])
 
         XCTAssertEqual(KeyboardLayoutConverter.convert("x", using: map), "x")
         XCTAssertTrue(map.isEmpty)
     }
 
     func testOmitsEmptyAndMultiCharacterSources() {
-        let map = KeyboardLayoutMap(pairs: [
+        let map = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "", target: "a"),
             KeyboardLayoutPair(source: "ab", target: "в")
-        ])
+        ]])
 
         XCTAssertEqual(KeyboardLayoutConverter.convert("ab", using: map), "ab")
         XCTAssertTrue(map.isEmpty)
@@ -112,14 +112,14 @@ final class KeyboardLayoutConverterTests: XCTestCase {
         let russian = Array("пибжэъёх")
         let abc = Array("gb,;']\\[")
         let russianToABC = KeyboardLayoutMap(
-            pairs: zip(russian, abc).map {
+            pairTiers: [zip(russian, abc).map {
                 KeyboardLayoutPair(source: String($0), target: String($1))
-            }
+            }]
         )
         let abcToRussian = KeyboardLayoutMap(
-            pairs: zip(abc, russian).map {
+            pairTiers: [zip(abc, russian).map {
                 KeyboardLayoutPair(source: String($0), target: String($1))
-            }
+            }]
         )
 
         let converted = KeyboardLayoutConverter.convert("пибжэъёх", using: russianToABC)

@@ -17,14 +17,6 @@ struct StandaloneModifierTapTracker {
     private var pressStartedAt: TimeInterval?
     private var wasUsedInCombination = false
 
-    static func functionGlobe(maximumTapDuration: TimeInterval) -> Self {
-        Self(shortcut: .functionGlobe, maximumTapDuration: maximumTapDuration)
-    }
-
-    static func command(maximumTapDuration: TimeInterval) -> Self {
-        Self(shortcut: .command, maximumTapDuration: maximumTapDuration)
-    }
-
     init(shortcut: ModifierShortcut, maximumTapDuration: TimeInterval) {
         self.init(
             keyCodes: shortcut.keyCodes,

@@ -41,7 +41,7 @@ public final class SelectedTextClipboardEditor: SelectedTextReplacing {
     private let applicationProvider: any FrontmostApplicationProviding
     private let scheduler: any ClipboardOperationScheduling
     private let interactionMonitor: any ClipboardOperationInteractionMonitoring
-    private let eventReplacer: any TextEventReplacing
+    private let eventReplacer: any SelectedTextEventReplacing
     private let diagnostics: ((String) -> Void)?
     private let copyRetryInterval: TimeInterval
     private let maximumCopyAttempts: Int
@@ -81,7 +81,7 @@ public final class SelectedTextClipboardEditor: SelectedTextReplacing {
         applicationProvider: any FrontmostApplicationProviding,
         scheduler: any ClipboardOperationScheduling,
         interactionMonitor: any ClipboardOperationInteractionMonitoring,
-        eventReplacer: any TextEventReplacing,
+        eventReplacer: any SelectedTextEventReplacing,
         diagnostics: ((String) -> Void)? = nil,
         copyRetryInterval: TimeInterval = 0.10,
         maximumCopyAttempts: Int = 5,

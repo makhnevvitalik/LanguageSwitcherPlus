@@ -711,16 +711,6 @@
         }
       }
     },
-    "Licenses & Acknowledgements…": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Лицензии и благодарности…"
-          }
-        }
-      }
-    },
     "Licenses…": {
       "localizations": {
         "ru": {
@@ -907,16 +897,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Способ нажатия"
-          }
-        }
-      }
-    },
-    "Quit": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Завершить"
           }
         }
       }
@@ -1147,16 +1127,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Шаг 2 из 2: разрешите Универсальный доступ"
-          }
-        }
-      }
-    },
-    "Switch": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Переключатель"
           }
         }
       }
@@ -1407,16 +1377,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть релиз"
-          }
-        }
-      }
-    },
-    "View Release %@": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Открыть выпуск %@"
           }
         }
       }

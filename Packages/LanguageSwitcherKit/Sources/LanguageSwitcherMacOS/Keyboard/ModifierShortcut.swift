@@ -7,13 +7,6 @@ public enum ModifierShortcut: String, CaseIterable, Sendable {
     case functionGlobe
     case command
 
-    public var title: String {
-        switch self {
-        case .functionGlobe: "Fn/Globe"
-        case .command: "Command"
-        }
-    }
-
     var keyCodes: Set<UInt16> {
         switch self {
         case .functionGlobe: [63]

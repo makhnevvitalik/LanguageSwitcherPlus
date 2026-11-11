@@ -157,7 +157,7 @@ private final class FakeFrontmostApplicationProvider: FrontmostApplicationProvid
     }
 }
 
-private final class FakeTextEventReplacer: TextEventReplacing {
+private final class FakeTextEventReplacer: TrackedTextEventReplacing {
     struct Call: Equatable {
         let deleteCount: Int
         let text: String
@@ -166,14 +166,6 @@ private final class FakeTextEventReplacer: TextEventReplacing {
     var calls: [Call] = []
     var result = true
     var isBusy = false
-
-    func replaceSelection(
-        with text: String,
-        completion: @escaping (Bool) -> Void
-    ) -> Bool {
-        XCTFail("Tracked-text tests must not replace a selection")
-        return false
-    }
 
     func replaceSuffix(
         deleting characterCount: Int,

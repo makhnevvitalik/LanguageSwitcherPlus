@@ -7,7 +7,7 @@ import XCTest
 
 final class StandaloneModifierTapTrackerTests: XCTestCase {
     func testShortStandaloneCommandTapTriggersOnRelease() {
-        var tracker = StandaloneModifierTapTracker.command(maximumTapDuration: 0.2)
+        var tracker = StandaloneModifierTapTracker(shortcut: .command, maximumTapDuration: 0.2)
 
         XCTAssertFalse(tracker.handle(.flagsChanged(keyCode: 55, flags: [.command], timestamp: 1.0)))
         XCTAssertTrue(tracker.handle(.flagsChanged(keyCode: 55, flags: [], timestamp: 1.1)))
@@ -17,7 +17,7 @@ final class StandaloneModifierTapTrackerTests: XCTestCase {
         for firstReleasedKeyCode: UInt16 in [55, 54] {
             let lastReleasedKeyCode: UInt16 = firstReleasedKeyCode == 55 ? 54 : 55
             for nextTapKeyCode: UInt16 in [55, 54] {
-                var tracker = StandaloneModifierTapTracker.command(maximumTapDuration: 0.2)
+                var tracker = StandaloneModifierTapTracker(shortcut: .command, maximumTapDuration: 0.2)
                 let context = "First release: \(firstReleasedKeyCode), next tap: \(nextTapKeyCode)"
 
                 XCTAssertFalse(tracker.handle(.flagsChanged(keyCode: 55, flags: [.command], timestamp: 1.0)), context)
@@ -32,7 +32,7 @@ final class StandaloneModifierTapTrackerTests: XCTestCase {
     }
 
     func testLongCommandPressDoesNotTrigger() {
-        var tracker = StandaloneModifierTapTracker.command(maximumTapDuration: 0.2)
+        var tracker = StandaloneModifierTapTracker(shortcut: .command, maximumTapDuration: 0.2)
 
         _ = tracker.handle(.flagsChanged(keyCode: 55, flags: [.command], timestamp: 1.0))
 
@@ -40,7 +40,7 @@ final class StandaloneModifierTapTrackerTests: XCTestCase {
     }
 
     func testCommandUsedWithKeyDoesNotTrigger() {
-        var tracker = StandaloneModifierTapTracker.command(maximumTapDuration: 0.2)
+        var tracker = StandaloneModifierTapTracker(shortcut: .command, maximumTapDuration: 0.2)
 
         _ = tracker.handle(.flagsChanged(keyCode: 55, flags: [.command], timestamp: 1.0))
         _ = tracker.handle(.keyDown(flags: [.command]))
@@ -49,7 +49,7 @@ final class StandaloneModifierTapTrackerTests: XCTestCase {
     }
 
     func testCommandUsedWithMouseDoesNotTrigger() {
-        var tracker = StandaloneModifierTapTracker.command(maximumTapDuration: 0.2)
+        var tracker = StandaloneModifierTapTracker(shortcut: .command, maximumTapDuration: 0.2)
 
         _ = tracker.handle(.flagsChanged(keyCode: 55, flags: [.command], timestamp: 1.0))
         _ = tracker.handle(.mouseDown(flags: [.command]))
@@ -58,7 +58,7 @@ final class StandaloneModifierTapTrackerTests: XCTestCase {
     }
 
     func testCapsLockDoesNotInvalidateFunctionGlobeTap() {
-        var tracker = StandaloneModifierTapTracker.functionGlobe(maximumTapDuration: 0.2)
+        var tracker = StandaloneModifierTapTracker(shortcut: .functionGlobe, maximumTapDuration: 0.2)
 
         _ = tracker.handle(.flagsChanged(keyCode: 63, flags: [.function, .capsLock], timestamp: 1.0))
 

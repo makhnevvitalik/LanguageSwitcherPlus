@@ -14,7 +14,6 @@ struct TrackedTextBufferSnapshot: Equatable {
     let inputs: [TrackedKeyInput]
 
     var generation: UInt64 { state.generation }
-    var applicationID: String { state.applicationID }
     var text: String { state.text }
 }
 

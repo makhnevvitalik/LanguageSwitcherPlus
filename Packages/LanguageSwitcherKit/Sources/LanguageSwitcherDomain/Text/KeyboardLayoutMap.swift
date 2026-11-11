@@ -14,10 +14,6 @@ public struct KeyboardLayoutPair: Equatable, Sendable {
 public struct KeyboardLayoutMap: Equatable, Sendable {
     private let replacements: [Character: String]
 
-    public init(pairs: [KeyboardLayoutPair]) {
-        replacements = Self.makeReplacements(from: pairs)
-    }
-
     public init(pairTiers: [[KeyboardLayoutPair]]) {
         var result: [Character: String] = [:]
         var higherPrioritySources: Set<Character> = []

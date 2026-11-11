@@ -10,7 +10,7 @@ public final class TrackedTextEventEditor: TrackedTextReplacing {
     private let buffer: TrackedTextBuffer
     private let contextTracker: InputContextTracker
     private let applicationProvider: any FrontmostApplicationProviding
-    private let eventReplacer: any TextEventReplacing
+    private let eventReplacer: any TrackedTextEventReplacing
     private let diagnostics: ((String) -> Void)?
 
     public convenience init(
@@ -34,7 +34,7 @@ public final class TrackedTextEventEditor: TrackedTextReplacing {
         buffer: TrackedTextBuffer,
         contextTracker: InputContextTracker,
         applicationProvider: any FrontmostApplicationProviding,
-        eventReplacer: any TextEventReplacing,
+        eventReplacer: any TrackedTextEventReplacing,
         diagnostics: ((String) -> Void)? = nil
     ) {
         self.permission = permission

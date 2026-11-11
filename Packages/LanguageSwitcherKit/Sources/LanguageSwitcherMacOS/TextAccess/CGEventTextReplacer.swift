@@ -14,7 +14,9 @@ public protocol SelectedTextEventReplacing: AnyObject {
     ) -> Bool
 }
 
-protocol TextEventReplacing: SelectedTextEventReplacing {
+protocol TrackedTextEventReplacing: AnyObject {
+    var isBusy: Bool { get }
+
     @discardableResult
     func replaceSuffix(
         deleting characterCount: Int,
@@ -186,4 +188,4 @@ public final class CGEventTextReplacer: SelectedTextEventReplacing {
     }
 }
 
-extension CGEventTextReplacer: TextEventReplacing {}
+extension CGEventTextReplacer: TrackedTextEventReplacing {}

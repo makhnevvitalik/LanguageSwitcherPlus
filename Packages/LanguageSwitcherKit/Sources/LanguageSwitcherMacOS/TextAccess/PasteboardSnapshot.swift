@@ -10,8 +10,6 @@ struct PasteboardSnapshot {
 
     private let items: [Item]
 
-    static let empty = PasteboardSnapshot(items: [])
-
     var debugSummary: String {
         let values = items.flatMap(\.values).map {
             "\($0.type.rawValue):\($0.data.count)B"

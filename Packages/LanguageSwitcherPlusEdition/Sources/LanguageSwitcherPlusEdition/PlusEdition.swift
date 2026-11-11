@@ -9,7 +9,6 @@ public enum PlusEdition {
         brandName: "Language Switcher",
         editionName: "Plus",
         productName: "Language Switcher Plus",
-        bundleIdentifier: "com.makhnevvitalik.LanguageSwitcherPlus",
         repositoryURL: URL(
             string: "https://github.com/makhnevvitalik/LanguageSwitcherPlus"
         )!,

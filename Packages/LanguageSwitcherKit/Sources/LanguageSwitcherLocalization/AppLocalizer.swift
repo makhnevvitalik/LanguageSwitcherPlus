@@ -24,10 +24,6 @@ public struct AppLocalizer: Sendable {
         ) ?? key
     }
 
-    public func format(_ key: String, _ arguments: CVarArg...) -> String {
-        format(key, arguments: arguments)
-    }
-
     public func format(_ key: String, arguments: [CVarArg]) -> String {
         String(
             format: text(key),

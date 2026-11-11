@@ -49,9 +49,11 @@ final class ApplicationCoordinator: NSObject {
         appController.onAccessibilityUnavailable = { [weak self] in
             self?.showAccessibilityRecovery()
         }
-        appController.onTextActionResult = { [weak self] result in
-            self?.handleTextActionResult(result)
+#if INTERNAL_BUILD
+        appController.onTextActionResult = { result in
+            TextActionDebugJournal.recordResult(String(describing: result))
         }
+#endif
 
         NSApp.setActivationPolicy(.accessory)
         NSApp.hide(nil)
@@ -215,7 +217,7 @@ final class ApplicationCoordinator: NSObject {
                 )
             },
             onResumeKeyboardSwitching: { [weak self] in
-                self?.resumeKeyboardSwitching(showWarning: true)
+                self?.resumeKeyboardSwitching()
             },
             onLaunchAtLoginChange: { [weak self] enabled in
                 self?.setLaunchAtLoginEnabled(enabled)
@@ -258,9 +260,9 @@ final class ApplicationCoordinator: NSObject {
         }
     }
 
-    private func resumeKeyboardSwitching(showWarning: Bool) {
+    private func resumeKeyboardSwitching() {
         startKeyboardMonitoringIfNeeded()
-        if showWarning, appController.isInputMonitoringPaused {
+        if appController.isInputMonitoringPaused {
             showInputMonitoringRecovery(allowSettingsFallback: true)
         }
     }
@@ -421,13 +423,6 @@ final class ApplicationCoordinator: NSObject {
     private func terminate() {
         hasRequestedInputMonitoring = false
         NSApp.terminate(nil)
-    }
-
-    private func handleTextActionResult(_ result: PerformTextActionResult) {
-#if INTERNAL_BUILD
-        let resultName = String(describing: result)
-        TextActionDebugJournal.recordResult(resultName)
-#endif
     }
 
     private func restartApplication(onFailure: (() -> Void)? = nil) {

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Vitalik Makhnev
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
+import AppKit
 import LanguageSwitcherApplication
 @testable import LanguageSwitcherMacOS
 import XCTest
@@ -323,7 +324,11 @@ private final class FakePasteboard: PasteboardClient {
         self.copyBehavior = copyBehavior
     }
 
-    func captureSnapshot() -> PasteboardSnapshot { .empty }
+    func captureSnapshot() -> PasteboardSnapshot {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        return PasteboardSnapshot.capture(from: pasteboard)
+    }
     func readString() -> String? { string }
 
     func restore(_ snapshot: PasteboardSnapshot) -> Bool {
@@ -353,7 +358,7 @@ private final class FakePasteboard: PasteboardClient {
     }
 }
 
-private final class FakeTextEventReplacer: TextEventReplacing {
+private final class FakeTextEventReplacer: SelectedTextEventReplacing {
     var selectionTexts: [String] = []
     var result = true
     var isBusy = false
@@ -368,15 +373,6 @@ private final class FakeTextEventReplacer: TextEventReplacing {
         selectionTexts.append(text)
         completion(result)
         return true
-    }
-
-    func replaceSuffix(
-        deleting characterCount: Int,
-        with inputs: [TrackedKeyInput],
-        completion: @escaping (Bool) -> Void
-    ) -> Bool {
-        XCTFail("Selected-text tests must not replace a tracked suffix")
-        return false
     }
 }
 

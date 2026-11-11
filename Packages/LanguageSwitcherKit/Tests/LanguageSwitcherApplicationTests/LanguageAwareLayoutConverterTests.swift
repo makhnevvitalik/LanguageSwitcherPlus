@@ -40,18 +40,18 @@ final class LanguageAwareLayoutConverterTests: XCTestCase {
             "ru": ["п", "а"],
             "de": ["p", "a"]
         ]
-        layouts.maps["en->ru"] = KeyboardLayoutMap(pairs: [
+        layouts.maps["en->ru"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "g", target: "п"),
             KeyboardLayoutPair(source: "f", target: "а")
-        ])
-        layouts.maps["ru->de"] = KeyboardLayoutMap(pairs: [
+        ]])
+        layouts.maps["ru->de"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "п", target: "p"),
             KeyboardLayoutPair(source: "а", target: "a")
-        ])
-        layouts.maps["de->en"] = KeyboardLayoutMap(pairs: [
+        ]])
+        layouts.maps["de->en"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "p", target: "p"),
             KeyboardLayoutPair(source: "a", target: "a")
-        ])
+        ]])
         let converter = LanguageAwareLayoutConverter(
             keyboardLayoutProvider: layouts,
             frequencyProvider: WordFrequencyProviderFake(supported: ["en", "ru", "de"]),
@@ -99,7 +99,7 @@ final class LanguageAwareLayoutConverterTests: XCTestCase {
 
     func testPhysicalPunctuationIsConvertedButExcludedFromLookup() {
         let fixture = makeFixture()
-        fixture.layouts.maps["en->ru"] = KeyboardLayoutMap(pairs: [
+        fixture.layouts.maps["en->ru"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "g", target: "п"),
             KeyboardLayoutPair(source: "h", target: "р"),
             KeyboardLayoutPair(source: "b", target: "и"),
@@ -107,7 +107,7 @@ final class LanguageAwareLayoutConverterTests: XCTestCase {
             KeyboardLayoutPair(source: "t", target: "е"),
             KeyboardLayoutPair(source: "n", target: "т"),
             KeyboardLayoutPair(source: "/", target: ".")
-        ])
+        ]])
         fixture.frequencies.values["ru:привет"] = 0.9
 
         let result = fixture.converter.convert(
@@ -134,15 +134,15 @@ final class LanguageAwareLayoutConverterTests: XCTestCase {
     func testLastChangedFragmentDeterminesTargetInputSource() {
         let layouts = KeyboardLayoutProviderFake()
         layouts.characters = ["en": ["q"], "ru": ["ж"], "de": ["z"]]
-        layouts.maps["en->ru"] = KeyboardLayoutMap(pairs: [
+        layouts.maps["en->ru"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "q", target: "й")
-        ])
-        layouts.maps["ru->de"] = KeyboardLayoutMap(pairs: [
+        ]])
+        layouts.maps["ru->de"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "ж", target: "ü")
-        ])
-        layouts.maps["de->en"] = KeyboardLayoutMap(pairs: [
+        ]])
+        layouts.maps["de->en"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "z", target: "y")
-        ])
+        ]])
         let frequencies = WordFrequencyProviderFake(supported: ["en", "ru", "de"])
         let converter = LanguageAwareLayoutConverter(
             keyboardLayoutProvider: layouts,
@@ -166,18 +166,18 @@ final class LanguageAwareLayoutConverterTests: XCTestCase {
     func testLanguageScoresBreakEqualCharacterCoverage() {
         let layouts = KeyboardLayoutProviderFake()
         layouts.characters = ["en": Set("wort"), "de": Set("wort"), "ru": ["я"]]
-        layouts.maps["en->de"] = KeyboardLayoutMap(pairs: Array("wort").map {
+        layouts.maps["en->de"] = KeyboardLayoutMap(pairTiers: [Array("wort").map {
             KeyboardLayoutPair(source: String($0), target: String($0))
-        })
-        layouts.maps["de->ru"] = KeyboardLayoutMap(pairs: zip(
+        }])
+        layouts.maps["de->ru"] = KeyboardLayoutMap(pairTiers: [zip(
             Array("wort"),
             Array("цщке")
         ).map {
             KeyboardLayoutPair(source: String($0), target: String($1))
-        })
-        layouts.maps["ru->en"] = KeyboardLayoutMap(pairs: [
+        }])
+        layouts.maps["ru->en"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "я", target: "z")
-        ])
+        ]])
         let frequencies = WordFrequencyProviderFake(supported: ["en", "de", "ru"])
         frequencies.values["de:wort"] = 0.9
         let converter = LanguageAwareLayoutConverter(
@@ -204,17 +204,17 @@ final class LanguageAwareLayoutConverterTests: XCTestCase {
         layouts.characters["en"] = ["x"]
         layouts.characters["ru"] = ["x", "y"]
         layouts.characters["de"] = ["z"]
-        layouts.maps["en->ru"] = KeyboardLayoutMap(pairs: [
+        layouts.maps["en->ru"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "x", target: "X")
-        ])
-        layouts.maps["ru->de"] = KeyboardLayoutMap(pairs: [
+        ]])
+        layouts.maps["ru->de"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "x", target: "A"),
             KeyboardLayoutPair(source: "x", target: "B"),
             KeyboardLayoutPair(source: "y", target: "Y")
-        ])
-        layouts.maps["de->en"] = KeyboardLayoutMap(pairs: [
+        ]])
+        layouts.maps["de->en"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "z", target: "Z")
-        ])
+        ]])
         let converter = LanguageAwareLayoutConverter(
             keyboardLayoutProvider: layouts,
             frequencyProvider: WordFrequencyProviderFake(supported: ["en", "ru", "de"]),
@@ -236,9 +236,9 @@ final class LanguageAwareLayoutConverterTests: XCTestCase {
 
     func testUnsupportedLanguageIsNotAConversionCandidate() {
         let fixture = makeFixture()
-        fixture.layouts.maps["en->ja"] = KeyboardLayoutMap(pairs: [
+        fixture.layouts.maps["en->ja"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "q", target: "あ")
-        ])
+        ]])
 
         let result = fixture.converter.convert(
             "q",
@@ -253,9 +253,9 @@ final class LanguageAwareLayoutConverterTests: XCTestCase {
         let fixture = makeFixture()
         fixture.frequencies.values["ru:я"] = 0.7
         fixture.layouts.characters["en"] = ["z"]
-        fixture.layouts.maps["en->ru"] = KeyboardLayoutMap(pairs: [
+        fixture.layouts.maps["en->ru"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "z", target: "я")
-        ])
+        ]])
 
         let result = fixture.converter.convert(
             "z",
@@ -278,15 +278,15 @@ final class LanguageAwareLayoutConverterTests: XCTestCase {
             "en": Set("ghbdtn"),
             "ru": Set("приветна")
         ]
-        layouts.maps["en->ru"] = KeyboardLayoutMap(pairs: [
+        layouts.maps["en->ru"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "g", target: "п"),
             KeyboardLayoutPair(source: "h", target: "р"),
             KeyboardLayoutPair(source: "b", target: "и"),
             KeyboardLayoutPair(source: "d", target: "в"),
             KeyboardLayoutPair(source: "t", target: "е"),
             KeyboardLayoutPair(source: "n", target: "т")
-        ])
-        layouts.maps["ru->en"] = KeyboardLayoutMap(pairs: [
+        ]])
+        layouts.maps["ru->en"] = KeyboardLayoutMap(pairTiers: [[
             KeyboardLayoutPair(source: "п", target: "g"),
             KeyboardLayoutPair(source: "р", target: "h"),
             KeyboardLayoutPair(source: "и", target: "b"),
@@ -294,7 +294,7 @@ final class LanguageAwareLayoutConverterTests: XCTestCase {
             KeyboardLayoutPair(source: "е", target: "t"),
             KeyboardLayoutPair(source: "т", target: "n"),
             KeyboardLayoutPair(source: "а", target: "f")
-        ])
+        ]])
         let frequencies = WordFrequencyProviderFake(supported: ["en", "ru"])
         let spelling = WordSpellingCheckerFake()
         return ConverterFixture(
