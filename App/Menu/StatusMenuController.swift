@@ -34,8 +34,8 @@ final class StatusMenuController: NSObject {
     private let panel = StatusPanel()
     private let contentStack = NSStackView()
     private let resumeCard = NSBox()
-    private let launchAtLoginSwitch = AccentSwitchControl()
-    private let showInMenuBarSwitch = AccentSwitchControl()
+    private let launchAtLoginSwitch = NSSwitch()
+    private let showInMenuBarSwitch = NSSwitch()
     private let languageButton = NSPopUpButton(frame: .zero, pullsDown: false)
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
@@ -222,10 +222,10 @@ final class StatusMenuController: NSObject {
         ])
 
         let title = NSTextField(labelWithString: identity.brandName)
-        title.font = AppStyle.Font.menuBrand
+        title.font = AppStyle.Font.appName
 
         let edition = NSTextField(labelWithString: identity.editionName)
-        edition.font = AppStyle.Font.menuEdition
+        edition.font = AppStyle.Font.appEdition
         edition.textColor = .secondaryLabelColor
 
         let identityStack = NSStackView(views: [title, edition])
@@ -244,9 +244,7 @@ final class StatusMenuController: NSObject {
         aboutButton.bezelStyle = .inline
         aboutButton.isBordered = false
         aboutButton.contentTintColor = .linkColor
-        aboutButton.font = AppStyle.Font.body
-        aboutButton.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: nil)
-        aboutButton.imagePosition = .imageLeading
+        aboutButton.font = AppStyle.Font.controlLabel
 
         let stack = NSStackView(views: [icon, identityStack, spacer, aboutButton])
         stack.orientation = .horizontal
@@ -283,7 +281,7 @@ final class StatusMenuController: NSObject {
         )
         button.bezelStyle = .rounded
         button.controlSize = .small
-        button.font = AppStyle.Font.control
+        button.font = AppStyle.Font.controlLabel
 
         let stack = NSStackView(views: [icon, label, spacer, button])
         stack.orientation = .horizontal
@@ -310,6 +308,8 @@ final class StatusMenuController: NSObject {
         card.cornerRadius = MenuCardLayout.cardCornerRadius
         card.contentViewMargins = .zero
 
+        launchAtLoginSwitch.controlSize = .small
+        showInMenuBarSwitch.controlSize = .small
         launchAtLoginSwitch.target = self
         launchAtLoginSwitch.action = #selector(toggleLaunchAtLogin(_:))
         launchAtLoginSwitch.setAccessibilityLabel(localized("Open at Login"))
@@ -320,7 +320,7 @@ final class StatusMenuController: NSObject {
         languageButton.target = self
         languageButton.action = #selector(selectLanguage(_:))
         languageButton.controlSize = .small
-        languageButton.font = AppStyle.Font.control
+        languageButton.font = AppStyle.Font.controlLabel
         languageButton.widthAnchor.constraint(
             greaterThanOrEqualToConstant: MenuCardLayout.popUpControlMinWidth
         ).isActive = true
@@ -342,10 +342,7 @@ final class StatusMenuController: NSObject {
         )
         let menuBarRow = MenuCardLayout.row(
             title: localized("Show in Menu Bar"),
-            detail: localizedFormat(
-                "To restore the icon, reopen %@ from Spotlight",
-                identity.productName
-            ),
+            detail: localized("To restore the icon, reopen the app from Spotlight"),
             trailing: showInMenuBarSwitch
         )
         let languageRow = MenuCardLayout.row(
@@ -387,12 +384,12 @@ final class StatusMenuController: NSObject {
         card.cornerRadius = MenuCardLayout.cardCornerRadius
         card.contentViewMargins = .zero
 
-        let button = NSButton(title: localized("Quit"), target: self, action: #selector(exitAction))
+        let button = NSButton(title: localizedFormat("Quit %@", identity.brandName), target: self, action: #selector(exitAction))
         button.bezelStyle = .inline
         button.isBordered = false
         button.alignment = .left
         button.contentTintColor = .labelColor
-        button.font = AppStyle.Font.body
+        button.font = AppStyle.Font.controlLabel
         button.translatesAutoresizingMaskIntoConstraints = false
         card.contentView?.addSubview(button)
         if let contentView = card.contentView {
@@ -440,7 +437,8 @@ final class StatusMenuController: NSObject {
         refresh()
         updatePanelFrame()
         installEventMonitors()
-        panel.orderFrontRegardless()
+        // Native controls use the key window’s accent. The panel stays nonactivating.
+        panel.makeKeyAndOrderFront(nil)
         panel.contentView?.layoutSubtreeIfNeeded()
         textToolsController.refreshScopeToolTipsAfterLayout()
     }
@@ -534,12 +532,12 @@ final class StatusMenuController: NSObject {
         onResumeKeyboardSwitching()
     }
 
-    @objc private func toggleLaunchAtLogin(_ sender: AccentSwitchControl) {
+    @objc private func toggleLaunchAtLogin(_ sender: NSSwitch) {
         onLaunchAtLoginChange(sender.state == .on)
         refresh()
     }
 
-    @objc private func toggleShowInMenuBar(_ sender: AccentSwitchControl) {
+    @objc private func toggleShowInMenuBar(_ sender: NSSwitch) {
         guard sender.state == .off else { return }
         closePanel()
         DispatchQueue.main.async { [weak self] in
@@ -569,7 +567,7 @@ private final class StatusPanel: NSPanel {
         becomesKeyOnlyIfNeeded = true
     }
 
-    override var canBecomeKey: Bool { false }
+    override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
 
@@ -600,80 +598,5 @@ private final class RoundedPanelShadowView: NSView {
             cornerHeight: cornerRadius,
             transform: nil
         )
-    }
-}
-
-private final class AccentSwitchControl: NSControl {
-    var state: NSControl.StateValue = .off {
-        didSet {
-            needsDisplay = true
-            setAccessibilityValue(state == .on)
-        }
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: 38, height: 22)
-    }
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        setAccessibilityRole(.checkBox)
-        setAccessibilityLabel(localized("Switch"))
-        setAccessibilityValue(false)
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setAccessibilityRole(.checkBox)
-        setAccessibilityLabel(localized("Switch"))
-        setAccessibilityValue(false)
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        guard isEnabled else { return }
-        state = state == .on ? .off : .on
-        sendAction(action, to: target)
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-
-        let trackRect = bounds.insetBy(dx: 0, dy: 1)
-        let track = NSBezierPath(
-            roundedRect: trackRect,
-            xRadius: trackRect.height / 2,
-            yRadius: trackRect.height / 2
-        )
-        let trackColor: NSColor
-        if !isEnabled {
-            trackColor = AppStyle.Color.disabledControl
-        } else if state == .on {
-            trackColor = AppStyle.Color.activeControl
-        } else {
-            trackColor = AppStyle.Color.inactiveControl
-        }
-        trackColor.setFill()
-        track.fill()
-
-        let knobSize = trackRect.height - 4
-        let knobX = state == .on
-            ? trackRect.maxX - knobSize - 2
-            : trackRect.minX + 2
-        let knobRect = NSRect(
-            x: knobX,
-            y: trackRect.midY - knobSize / 2,
-            width: knobSize,
-            height: knobSize
-        )
-
-        NSGraphicsContext.saveGraphicsState()
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(isEnabled ? 0.24 : 0.10)
-        shadow.shadowBlurRadius = 2
-        shadow.shadowOffset = NSSize(width: 0, height: -1)
-        shadow.set()
-        NSColor.white.setFill()
-        NSBezierPath(ovalIn: knobRect).fill()
-        NSGraphicsContext.restoreGraphicsState()
     }
 }

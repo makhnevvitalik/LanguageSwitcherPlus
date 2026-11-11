@@ -85,10 +85,8 @@ struct StandaloneModifierTapTracker {
             return false
         }
 
-        pressedKeyCodes.remove(keyCode)
-        guard pressedKeyCodes.isEmpty else {
-            return false
-        }
+        // The aggregate flag clears only after every key for this modifier is released.
+        pressedKeyCodes.removeAll()
 
         defer {
             pressStartedAt = nil

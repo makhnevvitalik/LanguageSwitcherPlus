@@ -416,7 +416,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Не удалось подключиться к GitHub. Попробуйте ещё раз."
+            "value": "Нет связи с GitHub. Попробуйте позже."
           }
         }
       }
@@ -426,7 +426,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Не удалось определить установленную версию приложения."
+            "value": "Не удалось определить версию приложения."
           }
         }
       }
@@ -496,7 +496,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "GitHub вернул ошибку HTTP %d."
+            "value": "Ошибка GitHub: HTTP %d."
           }
         }
       }
@@ -516,7 +516,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "GitHub вернул некорректные сведения об обновлении."
+            "value": "Не удалось прочитать данные релиза."
           }
         }
       }
@@ -721,6 +721,16 @@
         }
       }
     },
+    "Licenses…": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Лицензии…"
+          }
+        }
+      }
+    },
     "Lowercase": {
       "localizations": {
         "ru": {
@@ -907,6 +917,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Завершить"
+          }
+        }
+      }
+    },
+    "Quit %@": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить %@"
           }
         }
       }
@@ -1301,12 +1321,12 @@
         }
       }
     },
-    "To restore the icon, reopen %@ from Spotlight": {
+    "To restore the icon, reopen the app from Spotlight": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Чтобы вернуть значок, откройте %@ через Spotlight"
+            "value": "Чтобы вернуть значок, откройте приложение через Spotlight"
           }
         }
       }
@@ -1377,6 +1397,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Версия %@"
+          }
+        }
+      }
+    },
+    "View Release": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть релиз"
           }
         }
       }

@@ -11,6 +11,7 @@
 import AppKit
 import Foundation
 import LanguageSwitcherEdition
+import LanguageSwitcherMacOS
 
 @MainActor
 final class AboutWindowController: NSObject, NSWindowDelegate {
@@ -20,10 +21,10 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     private var updateButton: NSButton?
     private var updateProgressIndicator: NSProgressIndicator?
     private var updateStatusLabel: NSTextField?
-    private var updateTask: URLSessionDataTask?
-    private var activeUpdateRequestID: UUID?
+    private lazy var updateChecker = GitHubReleaseChecker(
+        apiURL: identity.latestReleaseAPIURL, releaseURL: identity.latestReleaseURL
+    )
     private var downloadURL: URL?
-    private var isCheckingForUpdates = false
 
     init(identity: AppIdentity) {
         self.identity = identity
@@ -40,7 +41,6 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        updateTask?.cancel()
         resetUpdateState()
     }
 
@@ -51,27 +51,28 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     private var copyrightText: String {
-        Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String ?? ""
+        (Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String ?? "")
+            .replacingOccurrences(of: "Copyright ", with: "")
     }
 
     private func makeAboutWindow() -> NSWindow {
-        let windowWidth: CGFloat = 500
-        let windowHeight: CGFloat = 280
+        let windowWidth = AppStyle.AboutLayout.width
+        let windowHeight = AppStyle.AboutLayout.height
         let windowContent = NSView()
 
         let iconView = NSImageView(image: NSApp.applicationIconImage)
         iconView.imageScaling = .scaleProportionallyUpOrDown
         iconView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            iconView.widthAnchor.constraint(equalToConstant: 76),
-            iconView.heightAnchor.constraint(equalToConstant: 76)
+            iconView.widthAnchor.constraint(equalToConstant: AppStyle.AboutLayout.iconSize),
+            iconView.heightAnchor.constraint(equalToConstant: AppStyle.AboutLayout.iconSize)
         ])
 
         let nameLabel = NSTextField(labelWithString: identity.brandName)
-        nameLabel.font = AppStyle.Font.aboutTitle
+        nameLabel.font = AppStyle.Font.appName
 
         let editionLabel = NSTextField(labelWithString: identity.editionName)
-        editionLabel.font = AppStyle.Font.emphasizedBody
+        editionLabel.font = AppStyle.Font.appEdition
         editionLabel.textColor = .secondaryLabelColor
 
         let versionLabel = NSTextField(labelWithString: versionText)
@@ -79,15 +80,17 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
         versionLabel.textColor = .secondaryLabelColor
 
         let copyrightLabel = NSTextField(labelWithString: copyrightText)
-        copyrightLabel.font = AppStyle.Font.caption
-        copyrightLabel.textColor = .tertiaryLabelColor
+        copyrightLabel.font = AppStyle.Font.body
+        copyrightLabel.textColor = .secondaryLabelColor
 
         let taglineLabel = NSTextField(
             wrappingLabelWithString: localized("Switch keyboard layouts and fix text typed in the wrong layout or case.")
         )
+        taglineLabel.isSelectable = false
         taglineLabel.font = AppStyle.Font.body
         taglineLabel.textColor = .secondaryLabelColor
-        taglineLabel.maximumNumberOfLines = 3
+        taglineLabel.maximumNumberOfLines = 2
+        taglineLabel.heightAnchor.constraint(equalToConstant: 32).isActive = true
 
         let updateButton = NSButton(
             title: localized("Check for Updates"),
@@ -95,24 +98,25 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
             action: #selector(updateButtonPressed)
         )
         updateButton.bezelStyle = .rounded
+        updateButton.font = AppStyle.Font.controlLabel
         updateButton.keyEquivalent = "\r"
-        updateButton.widthAnchor.constraint(equalToConstant: 170).isActive = true
+        updateButton.widthAnchor.constraint(equalToConstant: AppStyle.AboutLayout.updateButtonWidth).isActive = true
         self.updateButton = updateButton
 
         let gitHubButton = NSButton(title: "GitHub ↗", target: self, action: #selector(openGitHub))
         gitHubButton.isBordered = false
         gitHubButton.contentTintColor = .linkColor
-        gitHubButton.font = AppStyle.Font.emphasizedBody
+        gitHubButton.font = AppStyle.Font.controlLabel
         gitHubButton.focusRingType = .none
 
         let licensesButton = NSButton(
-            title: localized("Licenses & Acknowledgements…"),
+            title: localized("Licenses…"),
             target: self,
             action: #selector(showLicenses)
         )
         licensesButton.isBordered = false
         licensesButton.contentTintColor = .linkColor
-        licensesButton.font = AppStyle.Font.control
+        licensesButton.font = AppStyle.Font.controlLabel
         licensesButton.focusRingType = .none
 
         let progressIndicator = NSProgressIndicator()
@@ -125,49 +129,69 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
         let actionStack = NSStackView(views: [updateButton, progressIndicator, gitHubButton])
         actionStack.orientation = .horizontal
         actionStack.alignment = .centerY
-        actionStack.spacing = 12
+        actionStack.spacing = AppStyle.AboutLayout.actionSpacing
         actionStack.detachesHiddenViews = true
 
         let statusLabel = NSTextField(wrappingLabelWithString: "")
-        statusLabel.font = AppStyle.Font.status
+        statusLabel.isSelectable = false
+        statusLabel.identifier = NSUserInterfaceItemIdentifier("AboutUpdateStatus")
+        statusLabel.font = AppStyle.Font.statusText
         statusLabel.textColor = .secondaryLabelColor
-        statusLabel.lineBreakMode = .byWordWrapping
-        statusLabel.maximumNumberOfLines = 2
+        statusLabel.lineBreakMode = .byTruncatingTail
+        statusLabel.maximumNumberOfLines = 1
+        statusLabel.heightAnchor.constraint(equalToConstant: AppStyle.AboutLayout.statusHeight).isActive = true
+        statusLabel.widthAnchor.constraint(equalToConstant: windowWidth - AppStyle.Layout.windowInset * 2).isActive = true
         self.updateStatusLabel = statusLabel
 
-        let detailsStack = NSStackView(views: [
-            nameLabel,
-            editionLabel,
-            versionLabel,
-            copyrightLabel,
-            taglineLabel,
-            actionStack,
-            statusLabel,
-            licensesButton
-        ])
-        detailsStack.orientation = .vertical
-        detailsStack.alignment = .leading
-        detailsStack.spacing = 6
-        detailsStack.setCustomSpacing(12, after: copyrightLabel)
-        detailsStack.setCustomSpacing(16, after: taglineLabel)
-        detailsStack.setCustomSpacing(7, after: actionStack)
+        let separator = NSTextField(labelWithString: "·")
+        separator.font = AppStyle.Font.body
+        separator.textColor = .secondaryLabelColor
+        let versionRow = NSStackView(views: [editionLabel, separator, versionLabel])
+        versionRow.orientation = .horizontal
+        versionRow.alignment = .centerY
+        versionRow.spacing = 6
+        let identityStack = NSStackView(views: [nameLabel, versionRow])
+        identityStack.orientation = .vertical
+        identityStack.alignment = .leading
+        identityStack.spacing = 2
+        let header = NSStackView(views: [iconView, identityStack])
+        header.orientation = .horizontal
+        header.alignment = .centerY
+        header.spacing = AppStyle.AboutLayout.headerSpacing
 
-        let contentStack = NSStackView(views: [iconView, detailsStack])
-        contentStack.orientation = .horizontal
-        contentStack.alignment = .top
-        contentStack.spacing = 22
+        // Align the borderless button's title with the text labels above it.
+        let licensesRow = NSView()
+        licensesButton.translatesAutoresizingMaskIntoConstraints = false
+        licensesRow.addSubview(licensesButton)
+        NSLayoutConstraint.activate([
+            licensesButton.leadingAnchor.constraint(equalTo: licensesRow.leadingAnchor, constant: -2),
+            licensesButton.trailingAnchor.constraint(equalTo: licensesRow.trailingAnchor),
+            licensesButton.topAnchor.constraint(equalTo: licensesRow.topAnchor),
+            licensesButton.bottomAnchor.constraint(equalTo: licensesRow.bottomAnchor)
+        ])
+        let footerSpacer = NSView()
+        footerSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let footer = NSStackView(views: [licensesRow, footerSpacer, copyrightLabel])
+        footer.orientation = .horizontal
+        footer.alignment = .centerY
+        footer.spacing = 8
+
+        let contentStack = NSStackView(views: [header, taglineLabel, actionStack, statusLabel, footer])
+        contentStack.orientation = .vertical
+        contentStack.alignment = .leading
+        contentStack.spacing = AppStyle.AboutLayout.contentSpacing
+        contentStack.setCustomSpacing(12, after: taglineLabel)
+        contentStack.setCustomSpacing(4, after: actionStack)
+        contentStack.setCustomSpacing(AppStyle.AboutLayout.statusFooterSpacing, after: statusLabel)
         contentStack.translatesAutoresizingMaskIntoConstraints = false
         windowContent.addSubview(contentStack)
-
         NSLayoutConstraint.activate([
-            contentStack.leadingAnchor.constraint(equalTo: windowContent.leadingAnchor, constant: 30),
-            contentStack.trailingAnchor.constraint(equalTo: windowContent.trailingAnchor, constant: -30),
-            contentStack.topAnchor.constraint(equalTo: windowContent.topAnchor, constant: 28),
-            detailsStack.widthAnchor.constraint(equalToConstant: 342),
-            contentStack.bottomAnchor.constraint(
-                lessThanOrEqualTo: windowContent.bottomAnchor,
-                constant: -24
-            )
+            contentStack.leadingAnchor.constraint(equalTo: windowContent.leadingAnchor, constant: AppStyle.Layout.windowInset),
+            contentStack.trailingAnchor.constraint(equalTo: windowContent.trailingAnchor, constant: -AppStyle.Layout.windowInset),
+            contentStack.topAnchor.constraint(equalTo: windowContent.topAnchor, constant: AppStyle.Layout.windowTopInset),
+            taglineLabel.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            footer.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: windowContent.bottomAnchor, constant: -AppStyle.AboutLayout.bottomInset)
         ])
 
         let window = NSWindow(
@@ -207,84 +231,19 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     private func checkForUpdates() {
-        guard !isCheckingForUpdates else {
-            return
-        }
-
-        isCheckingForUpdates = true
+        guard !updateChecker.isChecking else { return }
         downloadURL = nil
         updateButton?.title = localized("Checking…")
         updateButton?.isEnabled = false
-        updateStatusLabel?.stringValue = ""
+        setUpdateStatusText("")
         updateProgressIndicator?.isHidden = false
         updateProgressIndicator?.startAnimation(nil)
-        let requestID = UUID()
-        activeUpdateRequestID = requestID
-
-        var request = URLRequest(
-            url: identity.latestReleaseAPIURL,
-            cachePolicy: .reloadIgnoringLocalCacheData,
-            timeoutInterval: 15
-        )
-        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
-
-        let task = URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            DispatchQueue.main.async {
-                guard let self,
-                      self.activeUpdateRequestID == requestID else {
-                    return
-                }
-                self.showUpdateResult(
-                    self.updateCheckResult(data: data, response: response, error: error)
-                )
-            }
+        updateChecker.check { [weak self] result in
+            self?.showUpdateResult(result)
         }
-        updateTask = task
-        task.resume()
     }
 
-    private func updateCheckResult(
-        data: Data?,
-        response: URLResponse?,
-        error: Error?
-    ) -> UpdateCheckResult {
-        if error != nil {
-            return .failure(localized("Could not contact GitHub. Please try again."))
-        }
-
-        guard let response = response as? HTTPURLResponse else {
-            return .failure(localized("GitHub returned an invalid response."))
-        }
-
-        guard (200...299).contains(response.statusCode) else {
-            return .failure(localizedFormat("GitHub returned HTTP %d.", response.statusCode))
-        }
-
-        guard let data,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let latestVersionTag = json["tag_name"] as? String,
-              let latestVersion = AppVersion(latestVersionTag) else {
-            return .failure(localized("GitHub returned invalid update information."))
-        }
-
-        guard let currentVersionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
-              let currentVersion = AppVersion(currentVersionString) else {
-            return .failure(localized("Could not determine the installed app version."))
-        }
-
-        if latestVersion > currentVersion {
-            let releaseURL = (json["html_url"] as? String).flatMap(URL.init(string:))
-                ?? identity.latestReleaseURL
-            return .updateAvailable(tag: latestVersionTag, url: releaseURL)
-        }
-
-        return .upToDate
-    }
-
-    private func showUpdateResult(_ result: UpdateCheckResult) {
-        isCheckingForUpdates = false
-        activeUpdateRequestID = nil
-        updateTask = nil
+    private func showUpdateResult(_ result: ReleaseUpdateResult) {
         updateProgressIndicator?.stopAnimation(nil)
         updateProgressIndicator?.isHidden = true
         updateButton?.isEnabled = true
@@ -293,34 +252,52 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
         case .upToDate:
             downloadURL = nil
             updateButton?.title = localized("Check for Updates")
-            updateStatusLabel?.textColor = .systemGreen
-            updateStatusLabel?.stringValue = localized("You’re up to date.")
+            updateStatusLabel?.textColor = AppStyle.Color.success
+            setUpdateStatusText(localized("You’re up to date."))
 
         case let .updateAvailable(tag, url):
             downloadURL = url
-            updateButton?.title = localizedFormat("View Release %@", tag)
+            updateButton?.title = localized("View Release")
             updateStatusLabel?.textColor = .labelColor
-            updateStatusLabel?.stringValue = localizedFormat("%@ is available.", tag)
+            setUpdateStatusText(localizedFormat("%@ is available.", tag))
 
-        case let .failure(message):
+        case let .failure(failure):
             downloadURL = nil
             updateButton?.title = localized("Try Again")
             updateStatusLabel?.textColor = .systemRed
-            updateStatusLabel?.stringValue = message
+            setUpdateStatusText(updateFailureText(failure))
         }
     }
 
+    private func updateFailureText(_ failure: ReleaseUpdateFailure) -> String {
+        switch failure {
+        case .network:
+            return localized("Could not contact GitHub. Please try again.")
+        case .invalidResponse:
+            return localized("GitHub returned an invalid response.")
+        case .invalidRelease:
+            return localized("GitHub returned invalid update information.")
+        case .currentVersion:
+            return localized("Could not determine the installed app version.")
+        case let .http(status):
+            return localizedFormat("GitHub returned HTTP %d.", status)
+        }
+    }
+
+    private func setUpdateStatusText(_ text: String) {
+        updateStatusLabel?.stringValue = text
+        updateStatusLabel?.toolTip = text.isEmpty ? nil : text
+    }
+
     private func resetUpdateState() {
-        isCheckingForUpdates = false
-        activeUpdateRequestID = nil
-        updateTask = nil
+        updateChecker.cancel()
         downloadURL = nil
         updateProgressIndicator?.stopAnimation(nil)
         updateProgressIndicator?.isHidden = true
         updateButton?.isEnabled = true
         updateButton?.title = localized("Check for Updates")
         updateStatusLabel?.textColor = .secondaryLabelColor
-        updateStatusLabel?.stringValue = ""
+        setUpdateStatusText("")
     }
 }
 
@@ -329,6 +306,7 @@ private final class LicensesAcknowledgementsWindowController: NSObject, NSWindow
     private struct Document {
         let title: String
         let text: String
+        let format: LicenseDocumentRenderer.Format
     }
 
     private let identity: AppIdentity
@@ -355,6 +333,7 @@ private final class LicensesAcknowledgementsWindowController: NSObject, NSWindow
         let contentView = NSView()
         let documentPicker = NSPopUpButton(frame: .zero, pullsDown: false)
         documentPicker.addItems(withTitles: documents.map(\.title))
+        documentPicker.font = AppStyle.Font.controlLabel
         documentPicker.target = self
         documentPicker.action = #selector(selectDocument(_:))
 
@@ -364,7 +343,7 @@ private final class LicensesAcknowledgementsWindowController: NSObject, NSWindow
         let intro = NSTextField(
             wrappingLabelWithString: localized("Language Switcher materials and bundled language data are covered by separate license terms.")
         )
-        intro.font = AppStyle.Font.status
+        intro.font = AppStyle.Font.body
         intro.textColor = .secondaryLabelColor
 
         let header = NSStackView(views: [heading, intro, documentPicker])
@@ -377,7 +356,7 @@ private final class LicensesAcknowledgementsWindowController: NSObject, NSWindow
         textView.isEditable = false
         textView.isSelectable = true
         textView.drawsBackground = false
-        textView.font = AppStyle.Font.example
+        textView.font = AppStyle.Font.body
         textView.textContainerInset = NSSize(width: 10, height: 10)
         textView.isAutomaticLinkDetectionEnabled = true
         textView.isVerticallyResizable = true
@@ -398,14 +377,14 @@ private final class LicensesAcknowledgementsWindowController: NSObject, NSWindow
         contentView.addSubview(header)
         contentView.addSubview(scrollView)
         NSLayoutConstraint.activate([
-            header.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
-            header.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
-            header.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 22),
+            header.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: AppStyle.Layout.windowInset),
+            header.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -AppStyle.Layout.windowInset),
+            header.topAnchor.constraint(equalTo: contentView.topAnchor, constant: AppStyle.Layout.windowTopInset),
             documentPicker.widthAnchor.constraint(greaterThanOrEqualToConstant: 220),
-            scrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
-            scrollView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
+            scrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: AppStyle.Layout.windowInset),
+            scrollView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -AppStyle.Layout.windowInset),
             scrollView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 16),
-            scrollView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -24)
+            scrollView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -AppStyle.Layout.windowTopInset)
         ])
 
         showDocument(at: 0)
@@ -431,7 +410,10 @@ private final class LicensesAcknowledgementsWindowController: NSObject, NSWindow
 
     private func showDocument(at index: Int) {
         guard documents.indices.contains(index) else { return }
-        textView.string = documents[index].text
+        let document = documents[index]
+        textView.textStorage?.setAttributedString(
+            LicenseDocumentRenderer.render(document.text, format: document.format)
+        )
         textView.scrollToBeginningOfDocument(nil)
     }
 
@@ -440,12 +422,14 @@ private final class LicensesAcknowledgementsWindowController: NSObject, NSWindow
             Document(
                 title: localizedFormat("License for %@", identity.productName),
                 text: resourceText(named: "LICENSE")
-                    ?? localizedFormat("The %@ license is unavailable.", identity.productName)
+                    ?? localizedFormat("The %@ license is unavailable.", identity.productName),
+                format: .plainText
             ),
             Document(
                 title: localized("Third-Party Materials & Notices"),
                 text: resourceText(named: "THIRD_PARTY_NOTICES", extension: "md")
-                    ?? localized("Third-party notices are unavailable.")
+                    ?? localized("Third-party notices are unavailable."),
+                format: .markdown
             )
         ]
 
@@ -455,14 +439,14 @@ private final class LicensesAcknowledgementsWindowController: NSObject, NSWindow
                 extension: "md",
                 bundle: resourceBundle
             ) {
-                result.append(Document(title: localized("Frequency Data Attribution"), text: attribution))
+                result.append(Document(title: localized("Frequency Data Attribution"), text: attribution, format: .markdown))
             }
             if let license = resourceText(
                 named: "LICENSE-CC-BY-SA-4.0",
                 extension: "txt",
                 bundle: resourceBundle
             ) {
-                result.append(Document(title: localized("CC BY-SA 4.0 Legal Code"), text: license))
+                result.append(Document(title: localized("CC BY-SA 4.0 Legal Code"), text: license, format: .plainText))
             }
         }
         return result
@@ -485,62 +469,5 @@ private final class LicensesAcknowledgementsWindowController: NSObject, NSWindow
             return nil
         }
         return Bundle(url: url)
-    }
-}
-
-private enum UpdateCheckResult {
-    case upToDate
-    case updateAvailable(tag: String, url: URL)
-    case failure(String)
-}
-
-private struct AppVersion: Comparable {
-    private let components: [Int]
-
-    init?(_ rawValue: String) {
-        var normalizedValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        if normalizedValue.lowercased().hasPrefix("v") {
-            normalizedValue.removeFirst()
-        }
-
-        let components = normalizedValue.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
-        guard !components.isEmpty else {
-            return nil
-        }
-
-        var parsedComponents = [Int]()
-        for component in components {
-            guard !component.isEmpty,
-                  let parsedComponent = Int(component),
-                  parsedComponent >= 0 else {
-                return nil
-            }
-
-            parsedComponents.append(parsedComponent)
-        }
-
-        self.components = parsedComponents
-    }
-
-    static func < (lhs: AppVersion, rhs: AppVersion) -> Bool {
-        let componentCount = max(lhs.components.count, rhs.components.count)
-        for index in 0..<componentCount {
-            let leftComponent = lhs.component(at: index)
-            let rightComponent = rhs.component(at: index)
-
-            if leftComponent != rightComponent {
-                return leftComponent < rightComponent
-            }
-        }
-
-        return false
-    }
-
-    private func component(at index: Int) -> Int {
-        guard index < components.count else {
-            return 0
-        }
-
-        return components[index]
     }
 }

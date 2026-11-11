@@ -27,7 +27,7 @@ enum MenuCardLayout {
     static func sectionHeading(title: String, symbolName: String) -> NSView {
         let imageView = NSImageView()
         imageView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
-        imageView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+        imageView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: AppStyle.Font.sectionTitle.pointSize, weight: .medium)
         imageView.contentTintColor = .secondaryLabelColor
         imageView.imageScaling = .scaleProportionallyDown
         imageView.alignment = .center
@@ -38,7 +38,7 @@ enum MenuCardLayout {
         ])
 
         let label = NSTextField(labelWithString: title)
-        label.font = AppStyle.Font.sectionHeading
+        label.font = AppStyle.Font.sectionTitle
         label.textColor = .secondaryLabelColor
 
         let stack = NSStackView(views: [imageView, label])
@@ -60,7 +60,7 @@ enum MenuCardLayout {
         labels.spacing = 1
         if let detail {
             let detailLabel = NSTextField(wrappingLabelWithString: detail)
-            detailLabel.font = AppStyle.Font.detail
+            detailLabel.font = AppStyle.Font.supportingText
             detailLabel.textColor = .secondaryLabelColor
             detailLabel.maximumNumberOfLines = 2
             labels.addArrangedSubview(detailLabel)
@@ -121,7 +121,7 @@ enum MenuCardLayout {
         button.attributedTitle = NSAttributedString(
             string: title,
             attributes: [
-                .font: AppStyle.Font.emphasizedCaption,
+                .font: AppStyle.Font.compactControlLabel,
                 .foregroundColor: isActive ? NSColor.white : NSColor.labelColor
             ]
         )
@@ -146,7 +146,7 @@ enum MenuCardLayout {
 
     static func configurePopUpControl(_ button: NSPopUpButton) {
         button.controlSize = .small
-        button.font = AppStyle.Font.control
+        button.font = AppStyle.Font.controlLabel
         button.widthAnchor.constraint(
             greaterThanOrEqualToConstant: popUpControlMinWidth
         ).isActive = true

@@ -13,6 +13,24 @@ final class StandaloneModifierTapTrackerTests: XCTestCase {
         XCTAssertTrue(tracker.handle(.flagsChanged(keyCode: 55, flags: [], timestamp: 1.1)))
     }
 
+    func testStandaloneCommandTapStillTriggersAfterOverlappingCommandPresses() {
+        for firstReleasedKeyCode: UInt16 in [55, 54] {
+            let lastReleasedKeyCode: UInt16 = firstReleasedKeyCode == 55 ? 54 : 55
+            for nextTapKeyCode: UInt16 in [55, 54] {
+                var tracker = StandaloneModifierTapTracker.command(maximumTapDuration: 0.2)
+                let context = "First release: \(firstReleasedKeyCode), next tap: \(nextTapKeyCode)"
+
+                XCTAssertFalse(tracker.handle(.flagsChanged(keyCode: 55, flags: [.command], timestamp: 1.0)), context)
+                XCTAssertFalse(tracker.handle(.flagsChanged(keyCode: 54, flags: [.command], timestamp: 1.02)), context)
+                XCTAssertFalse(tracker.handle(.flagsChanged(keyCode: firstReleasedKeyCode, flags: [.command], timestamp: 1.04)), context)
+                XCTAssertFalse(tracker.handle(.flagsChanged(keyCode: lastReleasedKeyCode, flags: [], timestamp: 1.06)), context)
+
+                XCTAssertFalse(tracker.handle(.flagsChanged(keyCode: nextTapKeyCode, flags: [.command], timestamp: 2.0)), context)
+                XCTAssertTrue(tracker.handle(.flagsChanged(keyCode: nextTapKeyCode, flags: [], timestamp: 2.1)), context)
+            }
+        }
+    }
+
     func testLongCommandPressDoesNotTrigger() {
         var tracker = StandaloneModifierTapTracker.command(maximumTapDuration: 0.2)
 

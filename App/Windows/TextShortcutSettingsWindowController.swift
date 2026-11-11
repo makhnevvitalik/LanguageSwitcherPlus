@@ -71,7 +71,7 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
             wrappingLabelWithString: localized("Choose whether to press a shortcut once, repeat the whole shortcut, or hold modifiers and tap the final key twice.")
         )
         hint.textColor = .secondaryLabelColor
-        hint.font = AppStyle.Font.body
+        hint.font = AppStyle.Font.supportingText
         hint.maximumNumberOfLines = 2
 
         let rows = TextAction.allCases.enumerated().map { index, action -> NSView in
@@ -79,7 +79,7 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
             let actionLabel = NSTextField(labelWithString: action.title)
             actionLabel.font = AppStyle.Font.emphasizedBody
             let exampleLabel = NSTextField(labelWithString: action.example)
-            exampleLabel.font = AppStyle.Font.example
+            exampleLabel.font = AppStyle.Font.textExample
             exampleLabel.textColor = .secondaryLabelColor
             let actionLabels = NSStackView(views: [actionLabel, exampleLabel])
             actionLabels.orientation = .vertical
@@ -100,6 +100,7 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
                 target: self,
                 action: #selector(editShortcut(_:))
             )
+            setButton.font = AppStyle.Font.controlLabel
             setButton.tag = index
             setButton.bezelStyle = .rounded
             setButton.widthAnchor.constraint(equalToConstant: 100).isActive = true
@@ -109,6 +110,7 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
                 target: self,
                 action: #selector(clearShortcut(_:))
             )
+            clearButton.font = AppStyle.Font.controlLabel
             clearButton.tag = index
             clearButton.bezelStyle = .rounded
             clearButton.alignment = .center
@@ -150,9 +152,9 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
         content.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 30),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -30),
-            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 28),
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: AppStyle.Layout.windowInset),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -AppStyle.Layout.windowInset),
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: AppStyle.Layout.windowTopInset),
             hint.widthAnchor.constraint(equalTo: stack.widthAnchor),
             rowsStack.widthAnchor.constraint(equalTo: stack.widthAnchor)
         ])

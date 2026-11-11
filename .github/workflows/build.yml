@@ -100,6 +100,12 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build analyze
 
+      - name: Test license document presentation
+        run: bash Tests/run-license-renderer-tests.sh
+
+      - name: Test shortcut editor keyboard navigation
+        run: Tests/run-shortcut-editor-tests.sh "$DERIVED_DATA/Build/Products/Release"
+
       - name: Verify architectures and bundled licenses
         run: |
           shopt -s nullglob
@@ -436,10 +442,11 @@ jobs:
               "dist/$archive#Universal macOS app (.zip)" \
               "dist/SHA256SUMS.txt#SHA-256 checksum" \
               --clobber
+            # Preserve reviewed notes when refreshing a prepared draft or
+            # refreshing the assets of an existing release.
             gh release edit "$GITHUB_REF_NAME" \
               --verify-tag \
-              --title "$product_name $version" \
-              --notes "$notes"
+              --title "$product_name $version"
           else
             gh release create "$GITHUB_REF_NAME" \
               "dist/$disk_image#Universal macOS app (.dmg)" \

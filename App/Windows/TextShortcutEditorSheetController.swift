@@ -49,7 +49,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
 
     private let shortcutValueLabel = NSTextField(labelWithString: localized("Press a shortcut"))
     private let captureHintLabel = NSTextField(labelWithString: "")
-    private let captureBox = NSBox()
+    private let captureBox = ShortcutCaptureBox()
     private var patternButtons: [NSButton] = []
     private let relatedAssignmentsLabel = NSTextField(wrappingLabelWithString: "")
     private let errorLabel = NSTextField(wrappingLabelWithString: "")
@@ -83,6 +83,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         onRecordingChanged(true)
         refresh()
         parentWindow.beginSheet(window)
+        window.makeFirstResponder(captureBox)
     }
 
     func cancel() {
@@ -101,9 +102,14 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         )
         title.font = AppStyle.Font.windowTitle
         let exampleLabel = NSTextField(labelWithString: action.example)
-        exampleLabel.font = AppStyle.Font.example
+        exampleLabel.font = AppStyle.Font.textExample
         exampleLabel.textColor = .secondaryLabelColor
 
+        captureBox.focusDidChange = { [weak self] in
+            self?.resetCaptureState()
+            self?.refresh()
+        }
+        captureBox.setAccessibilityLabel(localized("Shortcut"))
         captureBox.titlePosition = .noTitle
         captureBox.boxType = .custom
         captureBox.fillColor = .controlBackgroundColor
@@ -112,11 +118,11 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         captureBox.cornerRadius = 9
         captureBox.translatesAutoresizingMaskIntoConstraints = false
 
-        shortcutValueLabel.font = AppStyle.Font.shortcut
+        shortcutValueLabel.font = AppStyle.Font.shortcutValue
         shortcutValueLabel.alignment = .center
         shortcutValueLabel.lineBreakMode = .byTruncatingTail
         shortcutValueLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        captureHintLabel.font = AppStyle.Font.caption
+        captureHintLabel.font = AppStyle.Font.supportingText
         captureHintLabel.textColor = .secondaryLabelColor
         captureHintLabel.alignment = .center
         captureHintLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -159,12 +165,12 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
             button.widthAnchor.constraint(equalTo: patternOptions.widthAnchor).isActive = true
         }
 
-        relatedAssignmentsLabel.font = AppStyle.Font.caption
+        relatedAssignmentsLabel.font = AppStyle.Font.supportingText
         relatedAssignmentsLabel.textColor = .secondaryLabelColor
         relatedAssignmentsLabel.maximumNumberOfLines = 2
         relatedAssignmentsLabel.isHidden = true
 
-        errorLabel.font = AppStyle.Font.caption
+        errorLabel.font = AppStyle.Font.supportingText
         errorLabel.textColor = .systemRed
         errorLabel.maximumNumberOfLines = 2
         errorLabel.isHidden = true
@@ -174,6 +180,8 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
             target: self,
             action: #selector(cancelPressed)
         )
+        cancelButton.font = AppStyle.Font.controlLabel
+        saveButton.font = AppStyle.Font.controlLabel
         cancelButton.keyEquivalent = "\u{1b}"
         saveButton.target = self
         saveButton.action = #selector(savePressed)
@@ -208,9 +216,9 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         content.addSubview(buttonStack)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -24),
-            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 20),
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: AppStyle.Layout.windowInset),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -AppStyle.Layout.windowInset),
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: AppStyle.Layout.windowTopInset),
             captureBox.widthAnchor.constraint(equalTo: stack.widthAnchor),
             captureBox.heightAnchor.constraint(equalToConstant: 58),
             patternOptions.widthAnchor.constraint(equalTo: stack.widthAnchor),
@@ -226,7 +234,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
             ),
             relatedAssignmentsLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
             errorLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            buttonStack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -24),
+            buttonStack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -AppStyle.Layout.windowInset),
             buttonStack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -18),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: buttonStack.topAnchor, constant: -12)
         ])
@@ -241,6 +249,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.contentView = content
+        window.initialFirstResponder = captureBox
         return window
     }
 
@@ -264,6 +273,14 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
     }
 
     private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+        guard isCapturing(event) else { return event }
+        // Let AppKit navigate controls; modifier releases from Shift+Tab must
+        // not turn keyboard navigation into a recorded shortcut.
+        if [48, 49, 123, 124, 125, 126].contains(event.keyCode) {
+            resetCaptureState()
+            refresh()
+            return event
+        }
         if event.keyCode == 53 {
             cancel()
             return nil
@@ -306,6 +323,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
     }
 
     private func handleKeyUp(_ event: NSEvent) -> NSEvent? {
+        guard isCapturing(event) else { return event }
         guard selectedKind == .holdAndTapTwice,
               let functionKey = ShortcutFunctionKey(keyCode: event.keyCode),
               let pending = pendingHoldFunction,
@@ -328,6 +346,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
     }
 
     private func handleFlagsChanged(_ event: NSEvent) {
+        guard isCapturing(event) else { return }
         guard let modifier = ShortcutModifier(keyCode: event.keyCode) else {
             return
         }
@@ -384,6 +403,17 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         }
     }
 
+    private func isCapturing(_ event: NSEvent) -> Bool {
+        guard let sheetWindow else { return false }
+        return event.window === sheetWindow && sheetWindow.firstResponder === captureBox
+    }
+
+    private func refreshCaptureBorder() {
+        let focused = captureBox.hasKeyboardFocus
+        captureBox.borderColor = focused ? .controlAccentColor : .separatorColor
+        captureBox.borderWidth = focused ? 2 : 1
+    }
+
     private func classicShortcut(_ chord: TextShortcutChord) -> TextActionShortcut {
         switch selectedKind {
         case .once: .once(chord)
@@ -411,11 +441,9 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         }
         if let draft {
             shortcutValueLabel.stringValue = TextActionShortcutFormatter.string(for: draft)
-            shortcutValueLabel.font = AppStyle.Font.shortcut
+            shortcutValueLabel.font = AppStyle.Font.shortcutValue
             shortcutValueLabel.textColor = .labelColor
             captureHintLabel.stringValue = localized("Press a new shortcut to replace")
-            captureBox.borderColor = .separatorColor
-            captureBox.borderWidth = 1
         } else {
             shortcutValueLabel.stringValue = emptyCapturePrompt
             shortcutValueLabel.font = AppStyle.Font.body
@@ -423,9 +451,8 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
             captureHintLabel.stringValue = selectedKind == .holdAndTapTwice
                 ? localized("Then press the final key")
                 : localized("Modifier keys and F1–F20")
-            captureBox.borderColor = .controlAccentColor
-            captureBox.borderWidth = 2
         }
+        refreshCaptureBorder()
         refreshDraftStatus()
     }
 
@@ -442,11 +469,10 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         shortcutValueLabel.stringValue = value
         shortcutValueLabel.font = isInstruction
             ? AppStyle.Font.body
-            : AppStyle.Font.shortcut
+            : AppStyle.Font.shortcutValue
         shortcutValueLabel.textColor = .labelColor
         captureHintLabel.stringValue = hint
-        captureBox.borderColor = .controlAccentColor
-        captureBox.borderWidth = 2
+        refreshCaptureBorder()
         saveButton.isEnabled = false
         hideDraftStatus()
     }
@@ -532,7 +558,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         value.append(NSAttributedString(
             string: "\n\(kind.explanation)",
             attributes: [
-                .font: AppStyle.Font.caption,
+                .font: AppStyle.Font.supportingText,
                 .foregroundColor: NSColor.secondaryLabelColor
             ]
         ))
@@ -604,6 +630,48 @@ private extension KeyModifiers {
     var count: Int {
         ShortcutModifier.allCases.reduce(0) {
             $0 + (contains($1.mask) ? 1 : 0)
+        }
+    }
+}
+
+/// A focusable capture area; standard controls keep their ordinary key handling.
+private final class ShortcutCaptureBox: NSBox {
+    var focusDidChange: (() -> Void)?
+    private(set) var hasKeyboardFocus = false
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        if accepted {
+            hasKeyboardFocus = true
+            focusDidChange?()
+        }
+        return accepted
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let accepted = super.resignFirstResponder()
+        if accepted {
+            hasKeyboardFocus = false
+            focusDidChange?()
+        }
+        return accepted
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 48 {
+            if event.modifierFlags.contains(.shift) {
+                window?.selectPreviousKeyView(self)
+            } else {
+                window?.selectNextKeyView(self)
+            }
+        } else {
+            super.keyDown(with: event)
         }
     }
 }

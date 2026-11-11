@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D50000012F00000100000001 /* LicenseDocumentRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50000022F00000100000001 /* LicenseDocumentRenderer.swift */; };
 		B10000012F00000100000001 /* LanguageSwitcherDomain in Frameworks */ = {isa = PBXBuildFile; productRef = B10000052F00000100000001 /* LanguageSwitcherDomain */; };
 		B10000022F00000100000001 /* LanguageSwitcherApplication in Frameworks */ = {isa = PBXBuildFile; productRef = B10000062F00000100000001 /* LanguageSwitcherApplication */; };
 		B10000032F00000100000001 /* LanguageSwitcherMacOS in Frameworks */ = {isa = PBXBuildFile; productRef = B10000072F00000100000001 /* LanguageSwitcherMacOS */; };
@@ -39,6 +40,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		D50000022F00000100000001 /* LicenseDocumentRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseDocumentRenderer.swift; sourceTree = "<group>"; };
 		B100000A2F00000100000001 /* AppController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppController.swift; sourceTree = "<group>"; };
 		B100000B2F00000100000001 /* AppCompositionRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCompositionRoot.swift; sourceTree = "<group>"; };
 		D20000022F00000100000001 /* AppLocalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocalization.swift; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 			isa = PBXGroup;
 			children = (
 				D40000022F00000100000001 /* AppStyle.swift */,
+				D50000022F00000100000001 /* LicenseDocumentRenderer.swift */,
 				B20000162F00000100000001 /* TextActionPresentation.swift */,
 			);
 			path = Presentation;
@@ -269,6 +272,7 @@
 				B10000092F00000100000001 /* AppCompositionRoot.swift in Sources */,
 				D20000012F00000100000001 /* AppLocalization.swift in Sources */,
 				D40000012F00000100000001 /* AppStyle.swift in Sources */,
+				D50000012F00000100000001 /* LicenseDocumentRenderer.swift in Sources */,
 				B30000012F00000100000001 /* ApplicationCoordinator.swift in Sources */,
 				B40000012F00000100000001 /* TextActionDebugJournal.swift in Sources */,
 				B20000012F00000100000001 /* StatusMenuState.swift in Sources */,
@@ -411,7 +415,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"App/Preview Content\"";
 				DEVELOPMENT_TEAM = P66575H26Z;
 				ENABLE_APP_SANDBOX = YES;
@@ -435,7 +439,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.makhnevvitalik.LanguageSwitcherPlus;
 				PRODUCT_NAME = "Language Switcher Plus";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -452,7 +456,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"App/Preview Content\"";
 				DEVELOPMENT_TEAM = P66575H26Z;
 				ENABLE_APP_SANDBOX = YES;
@@ -475,7 +479,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.makhnevvitalik.LanguageSwitcherPlus;
 				PRODUCT_NAME = "Language Switcher Plus";
 				SWIFT_EMIT_LOC_STRINGS = YES;

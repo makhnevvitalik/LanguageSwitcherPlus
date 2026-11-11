@@ -109,7 +109,7 @@ final class TextToolsMenuController: NSObject {
         scopeControl.action = #selector(selectScope(_:))
         scopeControl.segmentStyle = .rounded
         scopeControl.controlSize = .small
-        scopeControl.font = AppStyle.Font.control
+        scopeControl.font = AppStyle.Font.controlLabel
         refreshScopeToolTipsAfterLayout()
         let scopeRow = MenuCardLayout.row(
             title: localized("Apply to"),
@@ -124,10 +124,11 @@ final class TextToolsMenuController: NSObject {
             target: self,
             action: #selector(showShortcutSettings)
         )
+        configureButton.controlSize = .small
         configureButton.bezelStyle = .inline
         configureButton.isBordered = false
         configureButton.contentTintColor = .linkColor
-        configureButton.font = AppStyle.Font.body
+        configureButton.font = AppStyle.Font.controlLabel
         let shortcutRow = MenuCardLayout.row(
             title: localized("Shortcuts"),
             detail: nil,

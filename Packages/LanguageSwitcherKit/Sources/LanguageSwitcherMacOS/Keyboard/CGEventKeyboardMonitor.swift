@@ -181,7 +181,7 @@ public final class CGEventKeyboardMonitor {
         stop()
     }
 
-    private func handle(type: CGEventType, event: CGEvent) {
+    func handle(type: CGEventType, event: CGEvent) {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             log("tap.disabled type=\(type.rawValue)")
             recoverDisabledTap()
@@ -374,7 +374,12 @@ public final class CGEventKeyboardMonitor {
         if Self.newLineKeyCodes.contains(keyCode) {
             trackedTextBuffer.invalidate()
         } else if keyCode == 51 {
-            trackedTextBuffer.recordBackspace(applicationID: applicationID)
+            if flags.intersection([.option, .command, .control, .function]).isEmpty {
+                trackedTextBuffer.recordBackspace(applicationID: applicationID)
+            } else {
+                // The application decides how much text modified Backspace deletes.
+                trackedTextBuffer.invalidate()
+            }
         } else if Self.resetKeyCodes.contains(keyCode)
                     || !flags.intersection([.command, .control, .function]).isEmpty {
             trackedTextBuffer.invalidate()
