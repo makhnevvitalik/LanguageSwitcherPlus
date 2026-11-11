@@ -19,16 +19,7 @@ final class TextToolsMenuController: NSObject {
     private let defaultMultiPressInterval: TimeInterval
 
     private let changeCaseButton = NSPopUpButton(frame: .zero, pullsDown: true)
-    private let scopeControl = NSSegmentedControl(
-        labels: [
-            localized("Typed text"),
-            localized("Last word"),
-            localized("Selection")
-        ],
-        trackingMode: .selectOne,
-        target: nil,
-        action: nil
-    )
+    private let scopeButton = NSPopUpButton(frame: .zero, pullsDown: false)
     private let intervalButton = NSPopUpButton(frame: .zero, pullsDown: false)
 
     var onWillPerformAction: (() -> Void)?
@@ -62,15 +53,9 @@ final class TextToolsMenuController: NSObject {
 
     func refresh() {
         refreshCaseMenu()
-        scopeControl.selectedSegment = TextConversionScope.allCases.firstIndex(of: currentScope()) ?? 0
+        scopeButton.selectItem(at: scopeButton.indexOfItem(withRepresentedObject: currentScope().rawValue))
+        scopeButton.toolTip = scopeButton.selectedItem?.toolTip
         refreshIntervalMenu()
-    }
-
-    func refreshScopeToolTipsAfterLayout() {
-        scopeControl.layoutSubtreeIfNeeded()
-        for (index, toolTip) in scopeToolTips.enumerated() {
-            scopeControl.setToolTip(toolTip, forSegment: index)
-        }
     }
 
     private func configureView() {
@@ -105,16 +90,15 @@ final class TextToolsMenuController: NSObject {
         stack.addArrangedSubview(caseRow)
         MenuCardLayout.addSeparator(to: stack)
 
-        scopeControl.target = self
-        scopeControl.action = #selector(selectScope(_:))
-        scopeControl.segmentStyle = .rounded
-        scopeControl.controlSize = .small
-        scopeControl.font = AppStyle.Font.controlLabel
-        refreshScopeToolTipsAfterLayout()
+        MenuCardLayout.configurePopUpControl(scopeButton)
+        scopeButton.setAccessibilityLabel(localized("Apply to"))
+        scopeButton.target = self
+        scopeButton.action = #selector(selectScope(_:))
+        configureScopeOptions()
         let scopeRow = MenuCardLayout.row(
             title: localized("Apply to"),
             detail: nil,
-            trailing: scopeControl
+            trailing: scopeButton
         )
         stack.addArrangedSubview(scopeRow)
         MenuCardLayout.addSeparator(to: stack)
@@ -163,12 +147,25 @@ final class TextToolsMenuController: NSObject {
         refresh()
     }
 
-    private var scopeToolTips: [String] {
-        [
-            localized("If text is selected, the action applies to it; otherwise, to all tracked typed text."),
-            localized("If text is selected, the action applies to it; otherwise, to the most recently tracked word."),
-            localized("The action applies only to selected text.")
-        ]
+    private func configureScopeOptions() {
+        for scope in TextConversionScope.allCases {
+            let title: String
+            let toolTip: String
+            switch scope {
+            case .typedText:
+                title = localized("Typed text")
+                toolTip = localized("If text is selected, the action applies to it; otherwise, to all tracked typed text.")
+            case .lastWord:
+                title = localized("Last word")
+                toolTip = localized("If text is selected, the action applies to it; otherwise, to the most recently tracked word.")
+            case .selectionOnly:
+                title = localized("Selection")
+                toolTip = localized("The action applies only to selected text.")
+            }
+            scopeButton.addItem(withTitle: title)
+            scopeButton.lastItem?.representedObject = scope.rawValue
+            scopeButton.lastItem?.toolTip = toolTip
+        }
     }
 
     private func refreshCaseMenu() {
@@ -214,9 +211,10 @@ final class TextToolsMenuController: NSObject {
         performAction(action)
     }
 
-    @objc private func selectScope(_ sender: NSSegmentedControl) {
-        guard TextConversionScope.allCases.indices.contains(sender.selectedSegment) else { return }
-        setScope(TextConversionScope.allCases[sender.selectedSegment])
+    @objc private func selectScope(_ sender: NSPopUpButton) {
+        guard let identifier = sender.selectedItem?.representedObject as? String,
+              let scope = TextConversionScope(rawValue: identifier) else { return }
+        setScope(scope)
         refresh()
     }
 

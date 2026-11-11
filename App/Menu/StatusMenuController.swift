@@ -439,8 +439,8 @@ final class StatusMenuController: NSObject {
         installEventMonitors()
         // Native controls use the key window’s accent. The panel stays nonactivating.
         panel.makeKeyAndOrderFront(nil)
+        panel.makeFirstResponder(nil)
         panel.contentView?.layoutSubtreeIfNeeded()
-        textToolsController.refreshScopeToolTipsAfterLayout()
     }
 
     private func closePanel() {
