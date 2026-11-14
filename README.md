@@ -53,6 +53,7 @@ Language Switcher Plus requires macOS 14 or later.
 
 #### First-launch notes
 
+- Use the gear menu to change the interface language, enable **Open at Login**, or toggle **Show in Menu Bar**.
 - Closing the settings window leaves the app running. With **Open at Login** enabled, it starts in the background. If the menu bar icon is hidden or there is no room for it, open the app from **Applications** or Spotlight to return to settings.
 - Plus checks GitHub in the background at launch. When a newer version is available, the **Update available** link in the menu bar panel and settings window opens its release page. To check manually, choose **Settings → About… → Check for Updates**.
 - The release also includes a ZIP archive if you prefer to unzip the app manually and move it to **Applications**.
@@ -137,6 +138,7 @@ Language Switcher Plus требует macOS 14 или новее.
 
 #### Первый запуск
 
+- В меню шестерёнки можно выбрать **Язык**, включить **Запускать при входе** и управлять настройкой **Показывать в строке меню**.
 - После закрытия окна настроек приложение продолжает работать. Если включено открытие при входе, приложение запускается в фоне. Если значок скрыт или для него нет места, откройте приложение из папки **«Программы»** или через Spotlight, чтобы вернуться к настройкам.
 - При запуске Plus проверяет GitHub в фоне. Если вышла новая версия, ссылка **Доступно обновление** в панели строки меню и окне настроек откроет страницу релиза. Для ручной проверки выберите **Настройки → О приложении… → Проверить обновления**.
 - В релиз также входит ZIP-архив: его можно распаковать вручную и переместить приложение в **Applications**.
