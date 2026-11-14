@@ -25,6 +25,7 @@
 		B20000032F00000100000001 /* TextToolsMenuController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000132F00000100000001 /* TextToolsMenuController.swift */; };
 		B20000042F00000100000001 /* KeyboardSwitchingMenuController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000142F00000100000001 /* KeyboardSwitchingMenuController.swift */; };
 		B20000052F00000100000001 /* StatusMenuController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000152F00000100000001 /* StatusMenuController.swift */; };
+		A1B2C3D42D0AF0010000002C /* PanelContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42D0AF0010000002A /* PanelContent.swift */; };
 		B20000062F00000100000001 /* TextActionPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000162F00000100000001 /* TextActionPresentation.swift */; };
 		B20000072F00000100000001 /* TextShortcutSettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000172F00000100000001 /* TextShortcutSettingsWindowController.swift */; };
 		B20000082F00000100000001 /* TextShortcutEditorSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000182F00000100000001 /* TextShortcutEditorSheetController.swift */; };
@@ -35,6 +36,7 @@
 		4C79BED22A553F0E006A793C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4C79BED12A553F0E006A793C /* Assets.xcassets */; };
 		4C79BED52A553F0E006A793C /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4C79BED42A553F0E006A793C /* Preview Assets.xcassets */; };
 		A1B2C3D42D0AF0010000000C /* AboutWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42D0AF0010000000A /* AboutWindowController.swift */; };
+		A1B2C3D42D0AF0010000001C /* AboutContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42D0AF0010000001A /* AboutContent.swift */; };
 		A1B2C3D42D0AF00100000016 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42D0AF00100000017 /* LICENSE */; };
 		A1B2C3D42D0AF00100000018 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42D0AF00100000019 /* THIRD_PARTY_NOTICES.md */; };
 /* End PBXBuildFile section */
@@ -51,6 +53,7 @@
 		B20000132F00000100000001 /* TextToolsMenuController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextToolsMenuController.swift; sourceTree = "<group>"; };
 		B20000142F00000100000001 /* KeyboardSwitchingMenuController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardSwitchingMenuController.swift; sourceTree = "<group>"; };
 		B20000152F00000100000001 /* StatusMenuController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusMenuController.swift; sourceTree = "<group>"; };
+		A1B2C3D42D0AF0010000002A /* PanelContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelContent.swift; sourceTree = "<group>"; };
 		B20000162F00000100000001 /* TextActionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextActionPresentation.swift; sourceTree = "<group>"; };
 		B20000172F00000100000001 /* TextShortcutSettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextShortcutSettingsWindowController.swift; sourceTree = "<group>"; };
 		B20000182F00000100000001 /* TextShortcutEditorSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextShortcutEditorSheetController.swift; sourceTree = "<group>"; };
@@ -64,6 +67,7 @@
 		4C79BED42A553F0E006A793C /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		4C79BED62A553F0E006A793C /* LanguageSwitcherPlus.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LanguageSwitcherPlus.entitlements; sourceTree = "<group>"; };
 		A1B2C3D42D0AF0010000000A /* AboutWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindowController.swift; sourceTree = "<group>"; };
+		A1B2C3D42D0AF0010000001A /* AboutContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutContent.swift; sourceTree = "<group>"; };
 		A1B2C3D42D0AF00100000017 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		A1B2C3D42D0AF00100000019 /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -148,6 +152,7 @@
 				B20000132F00000100000001 /* TextToolsMenuController.swift */,
 				B20000142F00000100000001 /* KeyboardSwitchingMenuController.swift */,
 				B20000152F00000100000001 /* StatusMenuController.swift */,
+				A1B2C3D42D0AF0010000002A /* PanelContent.swift */,
 				B20000192F00000100000001 /* MenuCardLayout.swift */,
 				B200001A2F00000100000001 /* ActiveInputsMenuController.swift */,
 			);
@@ -168,6 +173,7 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D42D0AF0010000000A /* AboutWindowController.swift */,
+				A1B2C3D42D0AF0010000001A /* AboutContent.swift */,
 				B20000172F00000100000001 /* TextShortcutSettingsWindowController.swift */,
 				B20000182F00000100000001 /* TextShortcutEditorSheetController.swift */,
 			);
@@ -279,6 +285,7 @@
 				B20000032F00000100000001 /* TextToolsMenuController.swift in Sources */,
 				B20000042F00000100000001 /* KeyboardSwitchingMenuController.swift in Sources */,
 				B20000052F00000100000001 /* StatusMenuController.swift in Sources */,
+				A1B2C3D42D0AF0010000002C /* PanelContent.swift in Sources */,
 				B20000092F00000100000001 /* MenuCardLayout.swift in Sources */,
 				B200000A2F00000100000001 /* ActiveInputsMenuController.swift in Sources */,
 				B20000062F00000100000001 /* TextActionPresentation.swift in Sources */,
@@ -286,6 +293,7 @@
 				B20000082F00000100000001 /* TextShortcutEditorSheetController.swift in Sources */,
 				4C79BED02A553F0D006A793C /* AppDelegate.swift in Sources */,
 				A1B2C3D42D0AF0010000000C /* AboutWindowController.swift in Sources */,
+				A1B2C3D42D0AF0010000001C /* AboutContent.swift in Sources */,
 				4C79BECE2A553F0D006A793C /* LanguageSwitcherApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -343,7 +351,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 13.3;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -397,7 +405,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 13.3;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
@@ -415,7 +423,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "\"App/Preview Content\"";
 				DEVELOPMENT_TEAM = P66575H26Z;
 				ENABLE_APP_SANDBOX = YES;
@@ -438,8 +446,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 12;
-				MARKETING_VERSION = 1.0.2;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.makhnevvitalik.LanguageSwitcherPlus;
 				PRODUCT_NAME = "Language Switcher Plus";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -456,7 +464,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "\"App/Preview Content\"";
 				DEVELOPMENT_TEAM = P66575H26Z;
 				ENABLE_APP_SANDBOX = YES;
@@ -478,8 +486,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 12;
-				MARKETING_VERSION = 1.0.2;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.makhnevvitalik.LanguageSwitcherPlus;
 				PRODUCT_NAME = "Language Switcher Plus";
 				SWIFT_EMIT_LOC_STRINGS = YES;

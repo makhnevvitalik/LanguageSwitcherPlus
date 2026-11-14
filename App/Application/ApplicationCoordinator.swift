@@ -19,6 +19,10 @@ final class ApplicationCoordinator: NSObject {
     private let identity: AppIdentity
     private let appController: AppController
     private let languageStore: AppLanguageStore
+    private lazy var updateChecker = GitHubReleaseChecker(
+        apiURL: identity.latestReleaseAPIURL,
+        releaseURL: identity.latestReleaseURL
+    )
     private let inputMonitoringPermission = LanguageSwitcherMacOS.InputMonitoringPermissionController()
     private var statusMenuController: StatusMenuController?
     private var shortcutSettingsWindowController: TextShortcutSettingsWindowController?
@@ -27,6 +31,7 @@ final class ApplicationCoordinator: NSObject {
     private var isRestarting = false
     private var isRecordingShortcut = false
     private var hasStarted = false
+    private var isStartingInBackground = false
     private var hasRequestedInputMonitoring = false
     private var hasPresentedPendingAccessibilityGuidance = false
 
@@ -40,11 +45,16 @@ final class ApplicationCoordinator: NSObject {
         self.languageStore = languageStore
     }
 
-    func start() {
-        hasStarted = true
+    func start(inBackground: Bool) {
+        isStartingInBackground = inBackground
+        defer { isStartingInBackground = false }
         configureMenu()
+        appController.onInputMonitoringStateChanged = { [weak self] in
+            self?.statusMenuController?.refreshMonitoringState()
+        }
         appController.onInputMonitoringUnavailable = { [weak self] in
-            self?.showInputMonitoringRecovery()
+            guard let self, !self.isStartingInBackground else { return }
+            self.showInputMonitoringRecovery()
         }
         appController.onAccessibilityUnavailable = { [weak self] in
             self?.showAccessibilityRecovery()
@@ -55,34 +65,27 @@ final class ApplicationCoordinator: NSObject {
         }
 #endif
 
-        NSApp.setActivationPolicy(.accessory)
-        NSApp.hide(nil)
-
         validateFunctionGlobeSetting()
-        promptForLaunchAtLoginIfNeeded()
         startKeyboardMonitoringIfNeeded()
+        hasStarted = true
+        checkForUpdates()
+        guard !inBackground else { return }
+
+        showSettings()
+        promptForLaunchAtLoginIfNeeded()
         DispatchQueue.main.async { [weak self] in
             self?.continuePendingTextShortcutPermissionSetup()
         }
     }
 
-    func applicationShouldHandleReopen(
-        _ sender: NSApplication,
-        hasVisibleWindows flag: Bool
-    ) -> Bool {
-        statusMenuController?.showIcon()
-        if flag {
-            NSApp.activate(ignoringOtherApps: true)
-            NSApp.windows.filter(\.isVisible).forEach { $0.orderFront(nil) }
-            return false
-        }
-        NSApp.setActivationPolicy(.accessory)
-        NSApp.hide(nil)
-        return false
+    func showSettings() {
+        guard !isRestarting, NSApp.modalWindow == nil else { return }
+        statusMenuController?.showSettings()
     }
 
     func applicationDidBecomeActive() {
         guard hasStarted,
+              !isStartingInBackground,
               !isRestarting,
               !isRecordingShortcut,
               !isShowingInputMonitoringWarning,
@@ -95,6 +98,20 @@ final class ApplicationCoordinator: NSObject {
 
     func stop() {
         appController.stopKeyboardMonitoring()
+    }
+
+    private func checkForUpdates(completion: ((ReleaseUpdateResult) -> Void)? = nil) {
+        updateChecker.check(joinInProgress: true) { [weak self] result in
+            switch result {
+            case let .updateAvailable(_, url):
+                self?.statusMenuController?.setAvailableReleaseURL(url)
+            case .upToDate:
+                self?.statusMenuController?.setAvailableReleaseURL(nil)
+            case .failure:
+                break
+            }
+            completion?(result)
+        }
     }
 
     private func configureMenu() {
@@ -151,7 +168,19 @@ final class ApplicationCoordinator: NSObject {
             multiPressIntervalOptions: appController.textShortcutMultiPressIntervalOptions,
             defaultMultiPressInterval: defaultMultiPressInterval
         )
+        let activeInputs = ActiveInputsMenuController(
+            inputSources: { [weak appController] in
+                appController?.availableInputSources ?? []
+            },
+            isSelected: { [weak appController] inputSource in
+                appController?.isInputSourceSelected(inputSource) ?? true
+            },
+            setSelected: { [weak appController] inputSource, selected in
+                appController?.setInputSource(inputSource, selected: selected) ?? .notFound
+            }
+        )
         let keyboardSwitching = KeyboardSwitchingMenuController(
+            activeInputsController: activeInputs,
             isShortcutEnabled: { [weak appController] shortcut in
                 appController?.isModifierShortcutEnabled(shortcut) ?? false
             },
@@ -177,17 +206,6 @@ final class ApplicationCoordinator: NSObject {
             durationOptions: appController.modifierTapDurationOptions,
             defaultDuration: defaultTapDuration
         )
-        let activeInputs = ActiveInputsMenuController(
-            inputSources: { [weak appController] in
-                appController?.availableInputSources ?? []
-            },
-            isSelected: { [weak appController] inputSource in
-                appController?.isInputSourceSelected(inputSource) ?? true
-            },
-            setSelected: { [weak appController] inputSource, selected in
-                appController?.setInputSource(inputSource, selected: selected) ?? .notFound
-            }
-        )
 
         statusMenuController = StatusMenuController(
             identity: identity,
@@ -205,14 +223,14 @@ final class ApplicationCoordinator: NSObject {
             },
             textToolsController: textTools,
             keyboardSwitchingController: keyboardSwitching,
-            activeInputsController: activeInputs,
-            aboutWindowController: AboutWindowController(identity: identity),
+            aboutWindowController: AboutWindowController(identity: identity) { [weak self] completion in
+                self?.checkForUpdates(completion: completion)
+            },
             currentState: { [weak self, weak appController] in
                 let isRecordingShortcut = self?.isRecordingShortcut ?? false
                 return StatusMenuState(
                     isInputMonitoringPaused: !isRecordingShortcut
                         && (appController?.isInputMonitoringPaused ?? false),
-                    isLaunchAtLoginAvailable: Self.isLaunchAtLoginAvailable,
                     isLaunchAtLoginEnabled: Self.isLaunchAtLoginEnabled
                 )
             },
@@ -255,7 +273,7 @@ final class ApplicationCoordinator: NSObject {
     private func validateFunctionGlobeSetting() {
         guard appController.isModifierShortcutEnabled(.functionGlobe) else { return }
         let result = appController.setModifierShortcut(.functionGlobe, enabled: true)
-        if case let .unavailable(issue) = result {
+        if case let .unavailable(issue) = result, !isStartingInBackground {
             showFunctionGlobeUnavailableWarning(issue: issue)
         }
     }
@@ -286,7 +304,6 @@ final class ApplicationCoordinator: NSObject {
             return
         }
         isShowingInputMonitoringWarning = true
-        statusMenuController?.showIcon()
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             defer { self.isShowingInputMonitoringWarning = false }
@@ -346,7 +363,6 @@ final class ApplicationCoordinator: NSObject {
             return
         }
         isShowingAccessibilityWarning = true
-        statusMenuController?.showIcon()
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             defer { self.isShowingAccessibilityWarning = false }
@@ -493,7 +509,6 @@ final class ApplicationCoordinator: NSObject {
     }
 
     private func promptForLaunchAtLoginIfNeeded() {
-        guard Self.isLaunchAtLoginAvailable else { return }
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: Self.launchAtLoginPromptShownKey) else { return }
         if Self.isLaunchAtLoginEnabled {
@@ -522,40 +537,28 @@ final class ApplicationCoordinator: NSObject {
         }
     }
 
-    private static var isLaunchAtLoginAvailable: Bool {
-        if #available(macOS 13.0, *) { return true }
-        return false
-    }
-
     private static var isLaunchAtLoginEnabled: Bool {
-        if #available(macOS 13.0, *) {
-            return SMAppService.mainApp.status == .enabled
-        }
-        return false
+        SMAppService.mainApp.status == .enabled
     }
 
     private func setLaunchAtLoginEnabled(_ enabled: Bool) {
-        guard Self.isLaunchAtLoginAvailable else { return }
-        if #available(macOS 13.0, *) {
-            do {
-                let service = SMAppService.mainApp
-                if enabled {
-                    if service.status != .enabled && service.status != .requiresApproval {
-                        try service.register()
-                    }
-                    if service.status == .requiresApproval {
-                        showLaunchAtLoginApproval()
-                    }
-                } else if service.status == .enabled || service.status == .requiresApproval {
-                    try service.unregister()
+        do {
+            let service = SMAppService.mainApp
+            if enabled {
+                if service.status != .enabled && service.status != .requiresApproval {
+                    try service.register()
                 }
-            } catch {
-                showLaunchAtLoginError(error)
+                if service.status == .requiresApproval {
+                    showLaunchAtLoginApproval()
+                }
+            } else if service.status == .enabled || service.status == .requiresApproval {
+                try service.unregister()
             }
+        } catch {
+            showLaunchAtLoginError(error)
         }
     }
 
-    @available(macOS 13.0, *)
     private func showLaunchAtLoginApproval() {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -595,24 +598,15 @@ final class ApplicationCoordinator: NSObject {
     }
 
     private var inputMonitoringSettingsPath: String {
-        if #available(macOS 13.0, *) {
-            return localized("System Settings > Privacy & Security > Input Monitoring")
-        }
-        return localized("System Preferences > Security & Privacy > Privacy > Input Monitoring")
+        localized("System Settings > Privacy & Security > Input Monitoring")
     }
 
     private var inputMonitoringSettingsButtonTitle: String {
-        if #available(macOS 13.0, *) {
-            return localized("Open System Settings")
-        }
-        return localized("Open System Preferences")
+        localized("Open System Settings")
     }
 
     private var accessibilitySettingsPath: String {
-        if #available(macOS 13.0, *) {
-            return localized("System Settings > Privacy & Security > Accessibility")
-        }
-        return localized("System Preferences > Security & Privacy > Privacy > Accessibility")
+        localized("System Settings > Privacy & Security > Accessibility")
     }
 
     private func message(for issue: ModifierShortcutIssue) -> String {
@@ -636,9 +630,6 @@ final class ApplicationCoordinator: NSObject {
     }
 
     private var keyboardSettingsPath: String {
-        if #available(macOS 13.0, *) {
-            return localized("System Settings > Keyboard")
-        }
-        return localized("System Preferences > Keyboard")
+        localized("System Settings > Keyboard")
     }
 }

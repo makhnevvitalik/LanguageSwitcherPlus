@@ -21,13 +21,17 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     private var updateButton: NSButton?
     private var updateProgressIndicator: NSProgressIndicator?
     private var updateStatusLabel: NSTextField?
-    private lazy var updateChecker = GitHubReleaseChecker(
-        apiURL: identity.latestReleaseAPIURL, releaseURL: identity.latestReleaseURL
-    )
+    private weak var contentStack: NSStackView?
+    private let requestUpdateCheck: (@escaping (ReleaseUpdateResult) -> Void) -> Void
     private var downloadURL: URL?
+    private var updateRequestID: UUID?
 
-    init(identity: AppIdentity) {
+    init(
+        identity: AppIdentity,
+        requestUpdateCheck: @escaping (@escaping (ReleaseUpdateResult) -> Void) -> Void
+    ) {
         self.identity = identity
+        self.requestUpdateCheck = requestUpdateCheck
         super.init()
     }
 
@@ -36,18 +40,20 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
             aboutWindow = makeAboutWindow()
         }
 
-        aboutWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        if let aboutWindow {
+            AppStyle.showWithoutInitialControlFocus(aboutWindow)
+        }
     }
 
     func windowWillClose(_ notification: Notification) {
-        resetUpdateState()
-    }
-
-    private var versionText: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-            ?? localized("Unknown version")
-        return localizedFormat("Version %@", version)
+        updateRequestID = nil
+        downloadURL = nil
+        updateProgressIndicator?.stopAnimation(nil)
+        updateProgressIndicator?.isHidden = true
+        updateButton?.title = localized("Check for Updates")
+        updateStatusLabel?.textColor = .secondaryLabelColor
+        setUpdateStatusText("")
     }
 
     private var copyrightText: String {
@@ -56,146 +62,21 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeAboutWindow() -> NSWindow {
-        let windowWidth = AppStyle.AboutLayout.width
-        let windowHeight = AppStyle.AboutLayout.height
-        let windowContent = NSView()
-
-        let iconView = NSImageView(image: NSApp.applicationIconImage)
-        iconView.imageScaling = .scaleProportionallyUpOrDown
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            iconView.widthAnchor.constraint(equalToConstant: AppStyle.AboutLayout.iconSize),
-            iconView.heightAnchor.constraint(equalToConstant: AppStyle.AboutLayout.iconSize)
-        ])
-
-        let nameLabel = NSTextField(labelWithString: identity.brandName)
-        nameLabel.font = AppStyle.Font.appName
-
-        let editionLabel = NSTextField(labelWithString: identity.editionName)
-        editionLabel.font = AppStyle.Font.appEdition
-        editionLabel.textColor = .secondaryLabelColor
-
-        let versionLabel = NSTextField(labelWithString: versionText)
-        versionLabel.font = AppStyle.Font.body
-        versionLabel.textColor = .secondaryLabelColor
-
-        let copyrightLabel = NSTextField(labelWithString: copyrightText)
-        copyrightLabel.font = AppStyle.Font.body
-        copyrightLabel.textColor = .secondaryLabelColor
-
-        let taglineLabel = NSTextField(
-            wrappingLabelWithString: localized("Switch keyboard layouts and fix text typed in the wrong layout or case.")
-        )
-        taglineLabel.isSelectable = false
-        taglineLabel.font = AppStyle.Font.body
-        taglineLabel.textColor = .secondaryLabelColor
-        taglineLabel.maximumNumberOfLines = 2
-        taglineLabel.heightAnchor.constraint(equalToConstant: 32).isActive = true
-
-        let updateButton = NSButton(
-            title: localized("Check for Updates"),
-            target: self,
-            action: #selector(updateButtonPressed)
-        )
-        updateButton.bezelStyle = .rounded
-        updateButton.font = AppStyle.Font.controlLabel
-        updateButton.keyEquivalent = "\r"
-        updateButton.widthAnchor.constraint(equalToConstant: AppStyle.AboutLayout.updateButtonWidth).isActive = true
+        let updateButton = NSButton(title: localized("Check for Updates"), target: self,
+                                    action: #selector(updateButtonPressed))
+        let licensesButton = NSButton(title: localized("Licenses…"), target: self, action: #selector(showLicenses))
+        let content = AboutContent(name: identity.productName, icon: NSApp.applicationIconImage,
+            tagline: localized("Switch keyboard layouts and fix text typed in the wrong layout or case."),
+            copyright: copyrightText, updateButton: updateButton,
+            gitHubButton: NSButton(title: "GitHub ↗", target: self, action: #selector(openGitHub)),
+            licensesButton: licensesButton, statusIdentifier: "AboutUpdateStatus")
         self.updateButton = updateButton
+        updateProgressIndicator = content.progressIndicator
+        updateStatusLabel = content.statusLabel
+        contentStack = content.contentStack
 
-        let gitHubButton = NSButton(title: "GitHub ↗", target: self, action: #selector(openGitHub))
-        gitHubButton.isBordered = false
-        gitHubButton.contentTintColor = .linkColor
-        gitHubButton.font = AppStyle.Font.controlLabel
-        gitHubButton.focusRingType = .none
-
-        let licensesButton = NSButton(
-            title: localized("Licenses…"),
-            target: self,
-            action: #selector(showLicenses)
-        )
-        licensesButton.isBordered = false
-        licensesButton.contentTintColor = .linkColor
-        licensesButton.font = AppStyle.Font.controlLabel
-        licensesButton.focusRingType = .none
-
-        let progressIndicator = NSProgressIndicator()
-        progressIndicator.style = .spinning
-        progressIndicator.controlSize = .small
-        progressIndicator.isDisplayedWhenStopped = false
-        progressIndicator.isHidden = true
-        self.updateProgressIndicator = progressIndicator
-
-        let actionStack = NSStackView(views: [updateButton, progressIndicator, gitHubButton])
-        actionStack.orientation = .horizontal
-        actionStack.alignment = .centerY
-        actionStack.spacing = AppStyle.AboutLayout.actionSpacing
-        actionStack.detachesHiddenViews = true
-
-        let statusLabel = NSTextField(wrappingLabelWithString: "")
-        statusLabel.isSelectable = false
-        statusLabel.identifier = NSUserInterfaceItemIdentifier("AboutUpdateStatus")
-        statusLabel.font = AppStyle.Font.statusText
-        statusLabel.textColor = .secondaryLabelColor
-        statusLabel.lineBreakMode = .byTruncatingTail
-        statusLabel.maximumNumberOfLines = 1
-        statusLabel.heightAnchor.constraint(equalToConstant: AppStyle.AboutLayout.statusHeight).isActive = true
-        statusLabel.widthAnchor.constraint(equalToConstant: windowWidth - AppStyle.Layout.windowInset * 2).isActive = true
-        self.updateStatusLabel = statusLabel
-
-        let separator = NSTextField(labelWithString: "·")
-        separator.font = AppStyle.Font.body
-        separator.textColor = .secondaryLabelColor
-        let versionRow = NSStackView(views: [editionLabel, separator, versionLabel])
-        versionRow.orientation = .horizontal
-        versionRow.alignment = .centerY
-        versionRow.spacing = 6
-        let identityStack = NSStackView(views: [nameLabel, versionRow])
-        identityStack.orientation = .vertical
-        identityStack.alignment = .leading
-        identityStack.spacing = 2
-        let header = NSStackView(views: [iconView, identityStack])
-        header.orientation = .horizontal
-        header.alignment = .centerY
-        header.spacing = AppStyle.AboutLayout.headerSpacing
-
-        // Align the borderless button's title with the text labels above it.
-        let licensesRow = NSView()
-        licensesButton.translatesAutoresizingMaskIntoConstraints = false
-        licensesRow.addSubview(licensesButton)
-        NSLayoutConstraint.activate([
-            licensesButton.leadingAnchor.constraint(equalTo: licensesRow.leadingAnchor, constant: -2),
-            licensesButton.trailingAnchor.constraint(equalTo: licensesRow.trailingAnchor),
-            licensesButton.topAnchor.constraint(equalTo: licensesRow.topAnchor),
-            licensesButton.bottomAnchor.constraint(equalTo: licensesRow.bottomAnchor)
-        ])
-        let footerSpacer = NSView()
-        footerSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let footer = NSStackView(views: [licensesRow, footerSpacer, copyrightLabel])
-        footer.orientation = .horizontal
-        footer.alignment = .centerY
-        footer.spacing = 8
-
-        let contentStack = NSStackView(views: [header, taglineLabel, actionStack, statusLabel, footer])
-        contentStack.orientation = .vertical
-        contentStack.alignment = .leading
-        contentStack.spacing = AppStyle.AboutLayout.contentSpacing
-        contentStack.setCustomSpacing(12, after: taglineLabel)
-        contentStack.setCustomSpacing(4, after: actionStack)
-        contentStack.setCustomSpacing(AppStyle.AboutLayout.statusFooterSpacing, after: statusLabel)
-        contentStack.translatesAutoresizingMaskIntoConstraints = false
-        windowContent.addSubview(contentStack)
-        NSLayoutConstraint.activate([
-            contentStack.leadingAnchor.constraint(equalTo: windowContent.leadingAnchor, constant: AppStyle.Layout.windowInset),
-            contentStack.trailingAnchor.constraint(equalTo: windowContent.trailingAnchor, constant: -AppStyle.Layout.windowInset),
-            contentStack.topAnchor.constraint(equalTo: windowContent.topAnchor, constant: AppStyle.Layout.windowTopInset),
-            taglineLabel.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
-            footer.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
-            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: windowContent.bottomAnchor, constant: -AppStyle.AboutLayout.bottomInset)
-        ])
-
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
+        let window = AppStyle.InformationWindow(
+            contentRect: NSRect(x: 0, y: 0, width: AppStyle.AboutLayout.width, height: 1),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -204,7 +85,8 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
         window.titleVisibility = .hidden
         window.isReleasedWhenClosed = false
         window.delegate = self
-        window.contentView = windowContent
+        window.contentView = content.view
+        AppStyle.sizeAboutWindow(window, to: content.contentStack)
         window.center()
 
         return window
@@ -231,22 +113,24 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     private func checkForUpdates() {
-        guard !updateChecker.isChecking else { return }
+        guard updateRequestID == nil else { return }
+        let requestID = UUID()
+        updateRequestID = requestID
         downloadURL = nil
         updateButton?.title = localized("Checking…")
-        updateButton?.isEnabled = false
         setUpdateStatusText("")
         updateProgressIndicator?.isHidden = false
         updateProgressIndicator?.startAnimation(nil)
-        updateChecker.check { [weak self] result in
-            self?.showUpdateResult(result)
+        requestUpdateCheck { [weak self] result in
+            guard let self, self.updateRequestID == requestID else { return }
+            self.updateRequestID = nil
+            self.showUpdateResult(result)
         }
     }
 
     private func showUpdateResult(_ result: ReleaseUpdateResult) {
         updateProgressIndicator?.stopAnimation(nil)
         updateProgressIndicator?.isHidden = true
-        updateButton?.isEnabled = true
 
         switch result {
         case .upToDate:
@@ -287,17 +171,9 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     private func setUpdateStatusText(_ text: String) {
         updateStatusLabel?.stringValue = text
         updateStatusLabel?.toolTip = text.isEmpty ? nil : text
-    }
-
-    private func resetUpdateState() {
-        updateChecker.cancel()
-        downloadURL = nil
-        updateProgressIndicator?.stopAnimation(nil)
-        updateProgressIndicator?.isHidden = true
-        updateButton?.isEnabled = true
-        updateButton?.title = localized("Check for Updates")
-        updateStatusLabel?.textColor = .secondaryLabelColor
-        setUpdateStatusText("")
+        if let aboutWindow, let contentStack {
+            AppStyle.sizeAboutWindow(aboutWindow, to: contentStack)
+        }
     }
 }
 

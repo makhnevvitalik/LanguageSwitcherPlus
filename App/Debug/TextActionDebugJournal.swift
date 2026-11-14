@@ -20,8 +20,6 @@ enum TextActionDebugJournal {
     static func handler(component: String) -> ((String) -> Void)? {
         return nil
     }
-
-    static func recordResult(_ result: String) {}
 #endif
 }
 

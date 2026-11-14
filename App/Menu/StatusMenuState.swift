@@ -3,6 +3,5 @@
 
 struct StatusMenuState {
     let isInputMonitoringPaused: Bool
-    let isLaunchAtLoginAvailable: Bool
     let isLaunchAtLoginEnabled: Bool
 }

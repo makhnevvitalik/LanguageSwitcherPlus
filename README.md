@@ -43,18 +43,20 @@ Plus is recommended for most users: macOS limits the app’s access to the syste
 
 ### Install and start
 
-Language Switcher Plus requires macOS 12 or later.
+Language Switcher Plus requires macOS 14 or later.
 
 1. Download the `.dmg` file from the [latest release](https://github.com/makhnevvitalik/LanguageSwitcherPlus/releases/latest).
 2. Open the downloaded file and drag **Language Switcher Plus.app** to **Applications**.
-3. Open the app from **Applications** or Spotlight. After launch, access it from its icon in the menu bar.
-4. Open the Language Switcher Plus menu, choose active inputs under **General**, then enable Fn/Globe, Command, or both under **Keyboard switching**.
+3. Open the app from **Applications** or Spotlight to show its settings window. The menu bar icon opens the quick panel when visible.
+4. Under **Keyboard switching**, choose active inputs and enable Fn/Globe, Command, or both.
 5. Grant the permissions requested by the app.
 
 #### First-launch notes
 
+- Closing the settings window leaves the app running. With **Open at Login** enabled, it starts in the background. If the menu bar icon is hidden or there is no room for it, open the app from **Applications** or Spotlight to return to settings.
+- Plus checks GitHub in the background at launch. When a newer version is available, the **Update available** link in the menu bar panel and settings window opens its release page. To check manually, choose **Settings → About… → Check for Updates**.
 - The release also includes a ZIP archive if you prefer to unzip the app manually and move it to **Applications**.
-- macOS may block the first launch because the app is distributed independently rather than through the App Store. If this happens, try opening the app once, then go to **System Settings → Privacy & Security**, find the security message for Language Switcher Plus, and select **Open Anyway**. On macOS 12, use **System Preferences → Security & Privacy → General → Open Anyway**.
+- macOS may block the first launch because the app is distributed independently rather than through the App Store. If this happens, try opening the app once, then go to **System Settings → Privacy & Security**, find the security message for Language Switcher Plus, and select **Open Anyway**.
 - When using Fn/Globe, set its macOS action to **Do Nothing** under Keyboard settings so the system action does not conflict with Language Switcher Plus.
 
 ### Permissions
@@ -125,18 +127,20 @@ Language Switcher Plus позволяет быстро переключать я
 
 ### Установка и запуск
 
-Language Switcher Plus требует macOS 12 или новее.
+Language Switcher Plus требует macOS 14 или новее.
 
 1. Скачайте файл `.dmg` из [последнего релиза](https://github.com/makhnevvitalik/LanguageSwitcherPlus/releases/latest).
 2. Откройте скачанный файл и перетащите **Language Switcher Plus.app** в папку **Applications**.
-3. Откройте приложение из папки **Applications** или через Spotlight. После запуска оно будет доступно по значку в строке меню.
-4. Откройте меню Language Switcher Plus, выберите используемые источники в разделе **Основные**, затем включите Fn/Globe, Command или обе клавиши в разделе **Переключение раскладки**.
+3. Откройте приложение из папки **«Программы»** или через Spotlight, чтобы показать окно настроек. Значок в строке меню открывает быструю панель, когда он виден.
+4. В разделе **Переключение раскладки** выберите используемые источники и включите Fn/Globe, Command или обе клавиши.
 5. Предоставьте запрошенные приложением разрешения.
 
 #### Первый запуск
 
+- После закрытия окна настроек приложение продолжает работать. Если включено открытие при входе, приложение запускается в фоне. Если значок скрыт или для него нет места, откройте приложение из папки **«Программы»** или через Spotlight, чтобы вернуться к настройкам.
+- При запуске Plus проверяет GitHub в фоне. Если вышла новая версия, ссылка **Доступно обновление** в панели строки меню и окне настроек откроет страницу релиза. Для ручной проверки выберите **Настройки → О приложении… → Проверить обновления**.
 - В релиз также входит ZIP-архив: его можно распаковать вручную и переместить приложение в **Applications**.
-- При первом запуске macOS может заблокировать приложение, поскольку оно распространяется самостоятельно, а не через App Store. В таком случае попробуйте один раз открыть приложение, затем перейдите в **Системные настройки → Конфиденциальность и безопасность**, найдите сообщение о Language Switcher Plus и выберите **Всё равно открыть**. В macOS 12 используйте **Системные настройки → Защита и безопасность → Основные → Всё равно открыть**.
+- При первом запуске macOS может заблокировать приложение, поскольку оно распространяется самостоятельно, а не через App Store. В таком случае попробуйте один раз открыть приложение, затем перейдите в **Системные настройки → Конфиденциальность и безопасность**, найдите сообщение о Language Switcher Plus и выберите **Всё равно открыть**.
 - При использовании Fn/Globe установите для неё действие **Ничего не делать** в настройках клавиатуры macOS, чтобы системное действие не конфликтовало с Language Switcher Plus.
 
 ### Разрешения

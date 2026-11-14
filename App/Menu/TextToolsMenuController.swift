@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
 import AppKit
+import SwiftUI
 import Foundation
 import LanguageSwitcherDomain
 
 @MainActor
-final class TextToolsMenuController: NSObject {
+final class TextToolsMenuController: NSObject, NSMenuDelegate {
     private let isBusy: () -> Bool
     private let isActionAvailable: (TextAction) -> Bool
     private let performAction: (TextAction) -> Void
@@ -23,7 +24,37 @@ final class TextToolsMenuController: NSObject {
     private let intervalButton = NSPopUpButton(frame: .zero, pullsDown: false)
 
     var onWillPerformAction: (() -> Void)?
-    let view = NSBox()
+    var allowsCaseActions = true
+    private lazy var configureButton: NSButton = {
+        let button = NSButton(title: localized("Configure…"), target: self, action: #selector(showShortcutSettings))
+        button.controlSize = .small
+        button.bezelStyle = .inline
+        button.isBordered = false
+        button.contentTintColor = .linkColor
+        button.font = AppStyle.Font.controlLabel
+        return button
+    }()
+
+    func content(isPanel: Bool) -> some View {
+        PanelCard(title: localized("Text actions"), symbol: "wand.and.stars") {
+            if isPanel {
+                PanelRow(title: localized("Change case")) { PanelNativeControl(view: changeCaseButton) }
+            } else {
+                PanelRow(title: localized("Change case"),
+                    detail: localized("Select text in another app. Use the menu bar icon to choose a case, or press your assigned shortcut.")) {
+                    EmptyView()
+                }
+            }
+            Divider()
+            PanelRow(title: localized("Apply to")) { PanelNativeControl(view: scopeButton) }
+            Divider()
+            PanelRow(title: localized("Shortcuts")) { PanelNativeControl(view: configureButton) }
+            Divider()
+            PanelRow(title: localized("Double-press interval"), detail: localized("Maximum pause between two presses")) {
+                PanelNativeControl(view: intervalButton)
+            }
+        }
+    }
 
     init(
         isBusy: @escaping () -> Bool,
@@ -48,102 +79,34 @@ final class TextToolsMenuController: NSObject {
         self.multiPressIntervalOptions = multiPressIntervalOptions
         self.defaultMultiPressInterval = defaultMultiPressInterval
         super.init()
-        configureView()
+        configureControls()
     }
 
     func refresh() {
-        refreshCaseMenu()
         scopeButton.selectItem(at: scopeButton.indexOfItem(withRepresentedObject: currentScope().rawValue))
         scopeButton.toolTip = scopeButton.selectedItem?.toolTip
-        refreshIntervalMenu()
+        intervalButton.selectItem(at: intervalButton.indexOfItem(withRepresentedObject: currentMultiPressInterval()))
     }
 
-    private func configureView() {
-        view.boxType = .custom
-        view.borderWidth = 0
-        view.fillColor = .controlBackgroundColor
-        view.cornerRadius = MenuCardLayout.cardCornerRadius
-        view.contentViewMargins = .zero
-
-        let stack = NSStackView()
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 0
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        let heading = MenuCardLayout.sectionHeading(
-            title: localized("Text actions"),
-            symbolName: "wand.and.stars"
-        )
-        stack.addArrangedSubview(heading)
-
+    private func configureControls() {
         MenuCardLayout.configurePopUpControl(changeCaseButton)
         changeCaseButton.toolTip = localized("Change the letter case of selected text.")
         changeCaseButton.target = self
         changeCaseButton.action = #selector(runCaseAction(_:))
-
-        let caseRow = MenuCardLayout.row(
-            title: localized("Change case"),
-            detail: nil,
-            trailing: changeCaseButton
-        )
-        stack.addArrangedSubview(caseRow)
-        MenuCardLayout.addSeparator(to: stack)
+        configureCaseMenu()
 
         MenuCardLayout.configurePopUpControl(scopeButton)
         scopeButton.setAccessibilityLabel(localized("Apply to"))
         scopeButton.target = self
         scopeButton.action = #selector(selectScope(_:))
         configureScopeOptions()
-        let scopeRow = MenuCardLayout.row(
-            title: localized("Apply to"),
-            detail: nil,
-            trailing: scopeButton
-        )
-        stack.addArrangedSubview(scopeRow)
-        MenuCardLayout.addSeparator(to: stack)
 
-        let configureButton = NSButton(
-            title: localized("Configure…"),
-            target: self,
-            action: #selector(showShortcutSettings)
-        )
-        configureButton.controlSize = .small
-        configureButton.bezelStyle = .inline
-        configureButton.isBordered = false
-        configureButton.contentTintColor = .linkColor
-        configureButton.font = AppStyle.Font.controlLabel
-        let shortcutRow = MenuCardLayout.row(
-            title: localized("Shortcuts"),
-            detail: nil,
-            trailing: configureButton
-        )
-        stack.addArrangedSubview(shortcutRow)
-        MenuCardLayout.addSeparator(to: stack)
-
+        MenuCardLayout.configurePopUpControl(intervalButton)
         intervalButton.target = self
         intervalButton.action = #selector(selectMultiPressInterval(_:))
-        MenuCardLayout.configurePopUpControl(intervalButton)
-        let intervalRow = MenuCardLayout.row(
-            title: localized("Double-press interval"),
-            detail: localized("Maximum pause between two presses"),
-            trailing: intervalButton
-        )
-        stack.addArrangedSubview(intervalRow)
-
-        guard let contentView = view.contentView else { return }
-        contentView.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: contentView.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            heading.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            caseRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            scopeRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            shortcutRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            intervalRow.widthAnchor.constraint(equalTo: stack.widthAnchor)
-        ])
+        MenuCardLayout.configureTimeIntervalOptions(for: intervalButton,
+            options: multiPressIntervalOptions, selectedValue: currentMultiPressInterval(),
+            defaultValue: defaultMultiPressInterval)
         refresh()
     }
 
@@ -168,9 +131,9 @@ final class TextToolsMenuController: NSObject {
         }
     }
 
-    private func refreshCaseMenu() {
-        let menu = changeCaseButton.menu ?? NSMenu()
-        menu.removeAllItems()
+    private func configureCaseMenu() {
+        let menu = NSMenu()
+        menu.delegate = self
         menu.autoenablesItems = false
         menu.addItem(NSMenuItem(
             title: "\u{2002}" + localized("Select case"),
@@ -186,25 +149,26 @@ final class TextToolsMenuController: NSObject {
             )
             item.target = self
             item.representedObject = action.identifier
-            item.isEnabled = !isBusy() && isActionAvailable(action)
             menu.addItem(item)
         }
         changeCaseButton.menu = menu
     }
 
-    private func refreshIntervalMenu() {
-        MenuCardLayout.configureTimeIntervalOptions(
-            for: intervalButton,
-            options: multiPressIntervalOptions,
-            selectedValue: currentMultiPressInterval(),
-            defaultValue: defaultMultiPressInterval
-        )
+    func menuWillOpen(_ menu: NSMenu) {
+        let canPerform = allowsCaseActions && !isBusy()
+        for item in menu.items.dropFirst() {
+            guard let identifier = item.representedObject as? String,
+                  let action = TextAction(identifier: identifier) else { continue }
+            item.isEnabled = canPerform && isActionAvailable(action)
+        }
     }
 
     @objc private func runCaseAction(_ sender: Any?) {
+        guard allowsCaseActions else { return }
         let item = sender as? NSMenuItem ?? changeCaseButton.selectedItem
         guard let identifier = item?.representedObject as? String,
-              let action = TextAction(identifier: identifier) else {
+              let action = TextAction(identifier: identifier),
+              !isBusy(), isActionAvailable(action) else {
             return
         }
         onWillPerformAction?()

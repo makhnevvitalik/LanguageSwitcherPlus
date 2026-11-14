@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
 import AppKit
+import SwiftUI
 import Foundation
 import LanguageSwitcherDomain
 import LanguageSwitcherMacOS
 
 @MainActor
 final class KeyboardSwitchingMenuController: NSObject {
+    private let activeInputsController: ActiveInputsMenuController
     private let isShortcutEnabled: (ModifierShortcut) -> Bool
     private let setShortcutEnabled: (ModifierShortcut, Bool) -> Void
     private let currentTapDuration: () -> TimeInterval
@@ -15,12 +17,27 @@ final class KeyboardSwitchingMenuController: NSObject {
     private let durationOptions: [TimeInterval]
     private let defaultDuration: TimeInterval
 
-    private var shortcutButtons: [ModifierShortcut: NSButton] = [:]
+    private var shortcutButtons: [ModifierShortcut: CompactSelectionButton] = [:]
     private let durationButton = NSPopUpButton(frame: .zero, pullsDown: false)
 
-    let view = NSBox()
+    private let buttons = NSStackView()
+
+    var content: some View {
+        PanelCard(title: localized("Keyboard switching"), symbol: "keyboard") {
+            PanelRow(title: localized("Switch language with")) { PanelNativeControl(view: buttons) }
+            Divider()
+            PanelRow(title: localized("Shortcut tap duration"), detail: localized("Maximum time for a switching-key tap")) {
+                PanelNativeControl(view: durationButton)
+            }
+            Divider()
+            PanelRow(title: localized("Active inputs"), detail: localized("At least two active")) {
+                PanelNativeControl(view: activeInputsController.view)
+            }
+        }
+    }
 
     init(
+        activeInputsController: ActiveInputsMenuController,
         isShortcutEnabled: @escaping (ModifierShortcut) -> Bool,
         setShortcutEnabled: @escaping (ModifierShortcut, Bool) -> Void,
         currentTapDuration: @escaping () -> TimeInterval,
@@ -28,6 +45,7 @@ final class KeyboardSwitchingMenuController: NSObject {
         durationOptions: [TimeInterval],
         defaultDuration: TimeInterval
     ) {
+        self.activeInputsController = activeInputsController
         self.isShortcutEnabled = isShortcutEnabled
         self.setShortcutEnabled = setShortcutEnabled
         self.currentTapDuration = currentTapDuration
@@ -35,54 +53,30 @@ final class KeyboardSwitchingMenuController: NSObject {
         self.durationOptions = durationOptions
         self.defaultDuration = defaultDuration
         super.init()
-        configureView()
+        configureControls()
     }
 
     func refresh() {
+        activeInputsController.refresh()
         for shortcut in ModifierShortcut.allCases {
             guard let button = shortcutButtons[shortcut] else { continue }
             let isEnabled = isShortcutEnabled(shortcut)
             button.state = isEnabled ? .on : .off
-            MenuCardLayout.styleCompactControl(
-                button,
+            button.updateSelection(
                 title: shortcut == .functionGlobe ? "fn" : "⌘",
-                isActive: isEnabled
+                isSelected: isEnabled
             )
         }
 
-        MenuCardLayout.configureTimeIntervalOptions(
-            for: durationButton,
-            options: durationOptions,
-            selectedValue: currentTapDuration(),
-            defaultValue: defaultDuration
-        )
+        durationButton.selectItem(at: durationButton.indexOfItem(withRepresentedObject: currentTapDuration()))
     }
 
-    private func configureView() {
-        view.boxType = .custom
-        view.borderWidth = 0
-        view.fillColor = .controlBackgroundColor
-        view.cornerRadius = MenuCardLayout.cardCornerRadius
-        view.contentViewMargins = .zero
-
-        let stack = NSStackView()
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 0
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        let heading = MenuCardLayout.sectionHeading(
-            title: localized("Keyboard switching"),
-            symbolName: "keyboard"
-        )
-        stack.addArrangedSubview(heading)
-
-        let buttons = NSStackView()
+    private func configureControls() {
         buttons.orientation = .horizontal
         buttons.alignment = .centerY
         buttons.spacing = MenuCardLayout.compactControlSpacing
         for shortcut in ModifierShortcut.allCases {
-            let button = NSButton(
+            let button = CompactSelectionButton(
                 title: shortcut == .functionGlobe ? "fn" : "⌘",
                 target: self,
                 action: #selector(toggleShortcut(_:))
@@ -95,35 +89,11 @@ final class KeyboardSwitchingMenuController: NSObject {
             buttons.addArrangedSubview(button)
         }
 
-        let shortcutRow = MenuCardLayout.row(
-            title: localized("Switch language with"),
-            detail: nil,
-            trailing: buttons
-        )
-        stack.addArrangedSubview(shortcutRow)
-        MenuCardLayout.addSeparator(to: stack)
-
         durationButton.target = self
         durationButton.action = #selector(selectDuration(_:))
         MenuCardLayout.configurePopUpControl(durationButton)
-        let durationRow = MenuCardLayout.row(
-            title: localized("Shortcut tap duration"),
-            detail: localized("Maximum time for a switching-key tap"),
-            trailing: durationButton
-        )
-        stack.addArrangedSubview(durationRow)
-
-        guard let contentView = view.contentView else { return }
-        contentView.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: contentView.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            heading.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            shortcutRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            durationRow.widthAnchor.constraint(equalTo: stack.widthAnchor)
-        ])
+        MenuCardLayout.configureTimeIntervalOptions(for: durationButton, options: durationOptions,
+            selectedValue: currentTapDuration(), defaultValue: defaultDuration)
         refresh()
     }
 

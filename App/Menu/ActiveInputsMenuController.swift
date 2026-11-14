@@ -22,9 +22,10 @@ final class ActiveInputsMenuController: NSObject {
     private let previousButton = NSButton()
     private let nextButton = NSButton()
     private var buttonStripWidthConstraint: NSLayoutConstraint!
-    private var displayedSources: [InputSource] = []
+    private var displayedSources: [InputSource]?
+    private var inputButtons: [CompactSelectionButton] = []
 
-    let view: NSView
+    var view: NSView { summary }
 
     init(
         inputSources: @escaping () -> [InputSource],
@@ -35,11 +36,6 @@ final class ActiveInputsMenuController: NSObject {
         self.isSelected = isSelected
         self.setSelected = setSelected
 
-        view = MenuCardLayout.row(
-            title: localized("Active inputs"),
-            detail: localized("At least two active"),
-            trailing: summary
-        )
         super.init()
 
         configureSummary()
@@ -51,13 +47,21 @@ final class ActiveInputsMenuController: NSObject {
     }
 
     func refresh() {
+        let sources = inputSources()
+        if sources == displayedSources {
+            for (source, button) in zip(sources, inputButtons) {
+                updateInputButton(button, for: source)
+            }
+            return
+        }
         clearArrangedSubviews(from: summary)
         clearArrangedSubviews(from: buttonStrip)
 
-        displayedSources = inputSources()
-        let buttons = displayedSources.enumerated().map { index, source in
+        displayedSources = sources
+        let buttons = sources.enumerated().map { index, source in
             inputButton(for: source, index: index)
         }
+        inputButtons = buttons
         let contentWidth = CGFloat(buttons.count) * MenuCardLayout.compactControlWidth
             + CGFloat(max(0, buttons.count - 1)) * MenuCardLayout.compactControlSpacing
 
@@ -155,25 +159,28 @@ final class ActiveInputsMenuController: NSObject {
         ])
     }
 
-    private func inputButton(for source: InputSource, index: Int) -> NSButton {
-        let selected = isSelected(source)
-        let code = inputCode(for: source)
-        let button = NSButton(
-            title: code,
+    private func inputButton(for source: InputSource, index: Int) -> CompactSelectionButton {
+        let button = CompactSelectionButton(
+            title: inputCode(for: source),
             target: self,
             action: #selector(toggleInputSource(_:))
         )
         button.tag = index
         button.toolTip = source.displayName
         MenuCardLayout.configureCompactControl(button)
-        MenuCardLayout.styleCompactControl(button, title: code, isActive: selected)
         button.setAccessibilityRole(.checkBox)
-        button.setAccessibilityValue(selected)
+        updateInputButton(button, for: source)
         return button
     }
 
+    private func updateInputButton(_ button: CompactSelectionButton, for source: InputSource) {
+        let selected = isSelected(source)
+        button.updateSelection(title: inputCode(for: source), isSelected: selected)
+        button.setAccessibilityValue(selected)
+    }
+
     @objc private func toggleInputSource(_ sender: NSButton) {
-        guard displayedSources.indices.contains(sender.tag) else { return }
+        guard let displayedSources, displayedSources.indices.contains(sender.tag) else { return }
         let source = displayedSources[sender.tag]
         _ = setSelected(source, !isSelected(source))
         refresh()
@@ -225,7 +232,7 @@ final class ActiveInputsMenuController: NSObject {
 
     private func inputCode(for source: InputSource) -> String {
         if let localeIdentifier = source.localeIdentifier,
-           let languageCode = Locale(identifier: localeIdentifier).languageCode {
+           let languageCode = Locale(identifier: localeIdentifier).language.languageCode?.identifier {
             return languageCode.uppercased()
         }
         return String(source.displayName.prefix(2)).uppercased()

@@ -25,7 +25,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         var explanation: String {
             switch self {
             case .once: localized("Press and release the shortcut once.")
-            case .repeatTwice: localized("Repeat the whole shortcut twice.")
+            case .repeatTwice: localized("Press the entire shortcut twice.")
             case .holdAndTapTwice:
                 localized("Hold modifier keys and tap the final key twice.")
             }

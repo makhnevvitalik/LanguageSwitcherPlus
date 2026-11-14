@@ -3,7 +3,7 @@
 
 # Language Switcher artwork
 
-The app and menu bar icons are original Language Switcher artwork. Edit the SVG source files in this directory, then regenerate the app icon PNGs with `rsvg-convert`:
+The app and menu bar icons are original Language Switcher artwork. Edit `LanguageSwitcherIcon.svg` in this directory, then regenerate the app icon PNGs with `rsvg-convert`:
 
 ```sh
 for size in 16 32 64 128 256 512 1024; do
@@ -13,4 +13,4 @@ for size in 16 32 64 128 256 512 1024; do
 done
 ```
 
-`MenuBarIcon.svg` is also stored in `MenuBarIcon.imageset` as a monochrome template image so macOS can adapt it to the current menu bar appearance.
+The source for the monochrome menu bar template is `App/Assets.xcassets/MenuBarIcon.imageset/MenuBarIcon.svg`. macOS adapts its color to the menu bar appearance.

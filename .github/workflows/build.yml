@@ -427,13 +427,13 @@ jobs:
           notes="$(printf '%s\n' \
             '## English' \
             '' \
-            "Download **$disk_image** for the easiest installation (recommended), or use **$archive** as an alternative. Both files support Apple Silicon and Intel Macs running macOS 12 or later." \
+            "Download **$disk_image** for the easiest installation (recommended), or use **$archive** as an alternative. Both files support Apple Silicon and Intel Macs running macOS 14 or later." \
             '' \
             "macOS may show a security warning on first launch. See the [README](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}#install-and-start) for installation and permission setup." \
             '' \
             '## Русский' \
             '' \
-            "Для простой установки скачайте **$disk_image** (рекомендуется) или используйте **$archive** как альтернативный вариант. Оба файла подходят для Mac с Apple Silicon и Intel под управлением macOS 12 или новее." \
+            "Для простой установки скачайте **$disk_image** (рекомендуется) или используйте **$archive** как альтернативный вариант. Оба файла подходят для Mac с Apple Silicon и Intel под управлением macOS 14 или новее." \
             '' \
             "При первом запуске macOS может показать предупреждение безопасности. Инструкция по установке и настройке разрешений приведена в [README](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}#установка-и-запуск).")"
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then

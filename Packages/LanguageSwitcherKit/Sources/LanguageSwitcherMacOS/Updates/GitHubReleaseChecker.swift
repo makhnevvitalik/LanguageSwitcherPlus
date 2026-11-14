@@ -36,6 +36,7 @@ public final class GitHubReleaseChecker {
     private let transport: Transport
     private var task: ReleaseRequestTask?
     private var requestID: UUID?
+    private var completions: [(ReleaseUpdateResult) -> Void] = []
 
     public var isChecking: Bool { requestID != nil }
 
@@ -58,8 +59,15 @@ public final class GitHubReleaseChecker {
         self.transport = transport
     }
 
-    public func check(completion: @escaping (ReleaseUpdateResult) -> Void) {
-        guard !isChecking else { return }
+    public func check(
+        joinInProgress: Bool = false,
+        completion: @escaping (ReleaseUpdateResult) -> Void
+    ) {
+        guard !isChecking else {
+            if joinInProgress { completions.append(completion) }
+            return
+        }
+        completions = [completion]
         let id = UUID()
         requestID = id
         let version = currentVersion()
@@ -70,8 +78,11 @@ public final class GitHubReleaseChecker {
                 guard let self, self.requestID == id else { return }
                 self.requestID = nil
                 self.task = nil
-                completion(Self.evaluate(data: data, response: response, error: error,
-                    currentVersion: version, fallbackReleaseURL: self.releaseURL))
+                let completions = self.completions
+                self.completions.removeAll()
+                let result = Self.evaluate(data: data, response: response, error: error,
+                    currentVersion: version, fallbackReleaseURL: self.releaseURL)
+                completions.forEach { $0(result) }
             }
         }
         task?.resume()
@@ -79,6 +90,7 @@ public final class GitHubReleaseChecker {
 
     public func cancel() {
         requestID = nil
+        completions.removeAll()
         task?.cancel()
         task = nil
     }

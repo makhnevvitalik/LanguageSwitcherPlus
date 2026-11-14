@@ -3,13 +3,12 @@
 
 import AppKit
 import Foundation
-import LanguageSwitcherApplication
+import SwiftUI
 import LanguageSwitcherEdition
 import LanguageSwitcherLocalization
-import LanguageSwitcherMacOS
 
 @MainActor
-final class StatusMenuController: NSObject {
+final class StatusMenuController: NSObject, NSMenuDelegate {
     private static let hideStatusBarIconKey = "hideStatusBarIcon"
     private static let panelContentWidth: CGFloat = 500
     private static let panelShadowInset: CGFloat = 10
@@ -24,7 +23,6 @@ final class StatusMenuController: NSObject {
     private let onLanguageChange: (AppLanguage) -> Void
     private let textToolsController: TextToolsMenuController
     private let keyboardSwitchingController: KeyboardSwitchingMenuController
-    private let activeInputsController: ActiveInputsMenuController
     private let aboutWindowController: AboutWindowController
     private let currentState: () -> StatusMenuState
     private let onResumeKeyboardSwitching: () -> Void
@@ -32,11 +30,15 @@ final class StatusMenuController: NSObject {
     private let onExit: () -> Void
 
     private let panel = StatusPanel()
-    private let contentStack = NSStackView()
-    private let resumeCard = NSBox()
-    private let launchAtLoginSwitch = NSSwitch()
-    private let showInMenuBarSwitch = NSSwitch()
-    private let languageButton = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let panelBackground = makeCardBackground()
+    private let scrollView = NSScrollView()
+    private let presentation = PanelPresentation()
+    private var hosting: NSHostingController<PanelContent>!
+    private let documentView = StatusScrollDocumentView()
+    private let loginItem = NSMenuItem()
+    private let menuBarItem = NSMenuItem()
+    private let languageMenu = NSMenu()
+    private var settingsWindow: NSWindow?
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
 
@@ -47,7 +49,6 @@ final class StatusMenuController: NSObject {
         onLanguageChange: @escaping (AppLanguage) -> Void,
         textToolsController: TextToolsMenuController,
         keyboardSwitchingController: KeyboardSwitchingMenuController,
-        activeInputsController: ActiveInputsMenuController,
         aboutWindowController: AboutWindowController,
         currentState: @escaping () -> StatusMenuState,
         onResumeKeyboardSwitching: @escaping () -> Void,
@@ -61,7 +62,6 @@ final class StatusMenuController: NSObject {
         self.onLanguageChange = onLanguageChange
         self.textToolsController = textToolsController
         self.keyboardSwitchingController = keyboardSwitchingController
-        self.activeInputsController = activeInputsController
         self.aboutWindowController = aboutWindowController
         self.currentState = currentState
         self.onResumeKeyboardSwitching = onResumeKeyboardSwitching
@@ -84,13 +84,13 @@ final class StatusMenuController: NSObject {
         }
     }
 
-    func showIcon() {
+    private func showIcon() {
         userDefaults.set(false, forKey: Self.hideStatusBarIconKey)
         statusItem.isVisible = true
-        showInMenuBarSwitch.state = .on
+        menuBarItem.state = .on
     }
 
-    func hideIcon() {
+    private func hideIcon() {
         closePanel()
         statusItem.isVisible = false
         userDefaults.set(true, forKey: Self.hideStatusBarIconKey)
@@ -100,10 +100,106 @@ final class StatusMenuController: NSObject {
         closePanel()
     }
 
+    func setAvailableReleaseURL(_ url: URL?) {
+        guard presentation.releaseURL != url else { return }
+        presentation.releaseURL = url
+        resizeVisibleSurface()
+    }
+
+    func refreshMonitoringState() {
+        guard updateMonitoringPresentation() else { return }
+        resizeVisibleSurface()
+    }
+
+    private func resizeVisibleSurface() {
+        if panel.isVisible {
+            updatePanelFrame()
+        } else if let window = settingsWindow, window.isVisible {
+            resizeSettingsWindow(window)
+        }
+        updateScrollViewport()
+    }
+
+    func showSettings() {
+        closePanel()
+        let isFirstPresentation = settingsWindow == nil
+        let window = settingsWindow ?? makeSettingsWindow()
+        settingsWindow = window
+        guard let controller = window.contentViewController else { return }
+        moveContent(to: controller, host: controller.view)
+        refresh(isPanel: false)
+        resizeSettingsWindow(window)
+        updateScrollViewport()
+        if isFirstPresentation {
+            window.center()
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        AppStyle.showWithoutInitialControlFocus(window)
+    }
+
+    private func resizeSettingsWindow(_ window: NSWindow) {
+        guard let contentView = window.contentView else { return }
+        contentView.layoutSubtreeIfNeeded()
+        let visibleFrame = (window.screen ?? NSScreen.main)?.visibleFrame
+        let availableHeight = visibleFrame?.height ?? 740
+        let titleBarHeight = window.frame.height - contentView.frame.height
+        let size = NSSize(
+            width: Self.panelContentWidth,
+            height: min(measureContent(), availableHeight - titleBarHeight - 20)
+        )
+        let frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
+        let bottom = window.frame.maxY - frame.height
+        window.setFrame(
+            NSRect(x: window.frame.minX, y: max(bottom, visibleFrame?.minY ?? bottom),
+                   width: frame.width, height: frame.height),
+            display: window.isVisible
+        )
+    }
+
+    private func makeSettingsWindow() -> NSWindow {
+        let window = AppStyle.SettingsWindow(
+            contentRect: NSRect(x: 0, y: 0, width: Self.panelContentWidth, height: 1),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = localizedFormat("%@ Settings", identity.productName)
+        window.isReleasedWhenClosed = false
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        let controller = NSViewController()
+        controller.view = Self.makeCardBackground()
+        window.contentViewController = controller
+        return window
+    }
+
+    private static func makeCardBackground() -> NSVisualEffectView {
+        let background = NSVisualEffectView()
+        background.material = .popover
+        background.blendingMode = .behindWindow
+        background.state = .active
+        return background
+    }
+
+    private func moveContent(to controller: NSViewController, host: NSView) {
+        guard hosting.parent !== controller else { return }
+        hosting.removeFromParent()
+        controller.addChild(hosting)
+        embedScrollView(in: host)
+    }
+
+    private func embedScrollView(in host: NSView) {
+        guard scrollView.superview !== host else { return }
+        scrollView.removeFromSuperview()
+        scrollView.frame = host.bounds
+        scrollView.autoresizingMask = [.width, .height]
+        host.addSubview(scrollView)
+    }
+
     private func configureStatusItem() {
         if let image = NSImage(named: "MenuBarIcon") {
             image.isTemplate = true
-            image.size = NSSize(width: 18, height: 18)
+            image.size = AppStyle.Icon.menuBarSize
             image.accessibilityDescription = identity.productName
             statusItem.button?.image = image
         }
@@ -129,10 +225,7 @@ final class StatusMenuController: NSObject {
         let shadowContainer = RoundedPanelShadowView(cornerRadius: 20)
         shadowContainer.translatesAutoresizingMaskIntoConstraints = false
 
-        let background = NSVisualEffectView()
-        background.material = .popover
-        background.blendingMode = .behindWindow
-        background.state = .active
+        let background = panelBackground
         background.wantsLayer = true
         background.layer?.cornerRadius = 20
         background.layer?.masksToBounds = true
@@ -140,43 +233,21 @@ final class StatusMenuController: NSObject {
         shadowContainer.addSubview(background)
         canvas.addSubview(shadowContainer)
 
-        contentStack.orientation = .vertical
-        contentStack.alignment = .leading
-        contentStack.spacing = 8
-        contentStack.detachesHiddenViews = true
-        contentStack.edgeInsets = NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
-        contentStack.translatesAutoresizingMaskIntoConstraints = false
-
-        let header = makeHeader()
-        configureResumeCard()
-        let generalCard = makeGeneralCard()
-        let quitCard = makeQuitCard()
-
-        [
-            header,
-            resumeCard,
-            textToolsController.view,
-            keyboardSwitchingController.view,
-            generalCard,
-            quitCard
-        ].forEach {
-            contentStack.addArrangedSubview($0)
-            $0.widthAnchor.constraint(equalTo: contentStack.widthAnchor, constant: -20).isActive = true
-        }
-
-        let documentView = NSView()
-        documentView.translatesAutoresizingMaskIntoConstraints = false
-        documentView.addSubview(contentStack)
-
-        let scrollView = NSScrollView()
+        hosting = NSHostingController(rootView: PanelContent(
+            presentation: presentation, name: identity.productName,
+            width: Self.panelContentWidth, settingsButton: makeSettingsButton(),
+            textTools: textToolsController, keyboardSwitching: keyboardSwitchingController,
+            resume: { [weak self] in self?.resumeInputMonitoring() },
+            openRelease: { [weak self] in self?.openAvailableRelease() }
+        ))
+        hosting.sizingOptions = []
+        documentView.addSubview(hosting.view)
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
-        scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
         scrollView.documentView = documentView
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-
-        background.addSubview(scrollView)
+        embedScrollView(in: background)
         NSLayoutConstraint.activate([
             shadowContainer.leadingAnchor.constraint(
                 equalTo: canvas.leadingAnchor,
@@ -198,248 +269,112 @@ final class StatusMenuController: NSObject {
             background.trailingAnchor.constraint(equalTo: shadowContainer.trailingAnchor),
             background.topAnchor.constraint(equalTo: shadowContainer.topAnchor),
             background.bottomAnchor.constraint(equalTo: shadowContainer.bottomAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: background.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: background.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: background.topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: background.bottomAnchor),
-            documentView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
-            contentStack.leadingAnchor.constraint(equalTo: documentView.leadingAnchor),
-            contentStack.trailingAnchor.constraint(equalTo: documentView.trailingAnchor),
-            contentStack.topAnchor.constraint(equalTo: documentView.topAnchor),
-            contentStack.bottomAnchor.constraint(equalTo: documentView.bottomAnchor),
             background.widthAnchor.constraint(equalToConstant: Self.panelContentWidth)
         ])
-        panel.contentView = canvas
+        let controller = NSViewController()
+        controller.view = canvas
+        controller.addChild(hosting)
+        panel.contentViewController = controller
     }
 
-    private func makeHeader() -> NSView {
-        let icon = NSImageView(image: NSApp.applicationIconImage)
-        icon.imageScaling = .scaleProportionallyUpOrDown
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            icon.widthAnchor.constraint(equalToConstant: 40),
-            icon.heightAnchor.constraint(equalToConstant: 40)
-        ])
-
-        let title = NSTextField(labelWithString: identity.brandName)
-        title.font = AppStyle.Font.appName
-
-        let edition = NSTextField(labelWithString: identity.editionName)
-        edition.font = AppStyle.Font.appEdition
-        edition.textColor = .secondaryLabelColor
-
-        let identityStack = NSStackView(views: [title, edition])
-        identityStack.orientation = .vertical
-        identityStack.alignment = .leading
-        identityStack.spacing = 0
-
-        let spacer = NSView()
-        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-        let aboutButton = NSButton(
-            title: localized("About"),
-            target: self,
-            action: #selector(showAbout)
-        )
-        aboutButton.bezelStyle = .inline
-        aboutButton.isBordered = false
-        aboutButton.contentTintColor = .linkColor
-        aboutButton.font = AppStyle.Font.controlLabel
-
-        let stack = NSStackView(views: [icon, identityStack, spacer, aboutButton])
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 10
-        stack.edgeInsets = NSEdgeInsets(top: 2, left: 4, bottom: 0, right: 4)
-        return stack
+    private func measureContent() -> CGFloat {
+        let height = hosting.sizeThatFits(in: NSSize(width: Self.panelContentWidth, height: 10_000)).height
+        documentView.frame.size = NSSize(width: Self.panelContentWidth, height: ceil(height))
+        hosting.view.frame = documentView.bounds
+        return documentView.frame.height
     }
 
-    private func configureResumeCard() {
-        resumeCard.boxType = .custom
-        resumeCard.borderWidth = 0
-        resumeCard.fillColor = NSColor.systemYellow.withAlphaComponent(0.16)
-        resumeCard.cornerRadius = MenuCardLayout.cardCornerRadius
-        resumeCard.contentViewMargins = .zero
+    private func updateScrollViewport() {
+        scrollView.hasVerticalScroller = documentView.frame.height > scrollView.bounds.height + 0.5
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
 
-        let icon = NSImageView()
-        icon.image = NSImage(systemSymbolName: "exclamationmark.shield", accessibilityDescription: nil)
-        icon.contentTintColor = .systemOrange
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            icon.widthAnchor.constraint(equalToConstant: 16),
-            icon.heightAnchor.constraint(equalToConstant: 16)
-        ])
+    private func makeSettingsButton() -> NSPopUpButton {
+        let button = AppStyle.SettingsMenuButton(frame: .zero, pullsDown: true)
+        let menu = NSMenu()
+        menu.delegate = self
+        menu.autoenablesItems = false
+        menu.font = AppStyle.Font.body
+        languageMenu.font = menu.font
 
-        let label = NSTextField(labelWithString: localized("Input Monitoring is paused"))
-        label.font = AppStyle.Font.fieldLabel
-        let spacer = NSView()
-        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let button = NSButton(
-            title: localized("Resume…"),
-            target: self,
-            action: #selector(resumeInputMonitoring)
-        )
-        button.bezelStyle = .rounded
+        let iconItem = NSMenuItem()
+        iconItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: AppStyle.Icon.settingsPointSize, weight: .regular))
+        let languageItem = NSMenuItem(title: localized("Language"), action: nil, keyEquivalent: "")
+        for language in AppLanguage.allCases {
+            let item = NSMenuItem(title: language.displayName, action: #selector(selectLanguage(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = language.rawValue
+            languageMenu.addItem(item)
+        }
+        languageItem.submenu = languageMenu
+        loginItem.title = localized("Open at Login")
+        loginItem.action = #selector(toggleLaunchAtLogin)
+        menuBarItem.title = localized("Show in Menu Bar")
+        menuBarItem.action = #selector(toggleShowInMenuBar)
+        let aboutItem = NSMenuItem(title: localized("About…"), action: #selector(showAbout), keyEquivalent: "")
+        let quitItem = NSMenuItem(title: localizedFormat("Quit %@", identity.productName),
+                                  action: #selector(exitAction), keyEquivalent: "")
+        for item in [loginItem, menuBarItem, aboutItem, quitItem] { item.target = self }
+        for item in [iconItem, languageItem, loginItem, menuBarItem, .separator(), aboutItem, quitItem] {
+            menu.addItem(item)
+        }
+        button.menu = menu
+        (button.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
         button.controlSize = .small
-        button.font = AppStyle.Font.controlLabel
-
-        let stack = NSStackView(views: [icon, label, spacer, button])
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 9
-        stack.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        resumeCard.contentView?.addSubview(stack)
-        if let contentView = resumeCard.contentView {
-            NSLayoutConstraint.activate([
-                stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-                stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-                stack.topAnchor.constraint(equalTo: contentView.topAnchor),
-                stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
-            ])
-        }
-    }
-
-    private func makeGeneralCard() -> NSView {
-        let card = NSBox()
-        card.boxType = .custom
-        card.borderWidth = 0
-        card.fillColor = .controlBackgroundColor
-        card.cornerRadius = MenuCardLayout.cardCornerRadius
-        card.contentViewMargins = .zero
-
-        launchAtLoginSwitch.controlSize = .small
-        showInMenuBarSwitch.controlSize = .small
-        launchAtLoginSwitch.target = self
-        launchAtLoginSwitch.action = #selector(toggleLaunchAtLogin(_:))
-        launchAtLoginSwitch.setAccessibilityLabel(localized("Open at Login"))
-        showInMenuBarSwitch.target = self
-        showInMenuBarSwitch.action = #selector(toggleShowInMenuBar(_:))
-        showInMenuBarSwitch.setAccessibilityLabel(localized("Show in Menu Bar"))
-        showInMenuBarSwitch.state = .on
-        languageButton.target = self
-        languageButton.action = #selector(selectLanguage(_:))
-        languageButton.controlSize = .small
-        languageButton.font = AppStyle.Font.controlLabel
-        languageButton.widthAnchor.constraint(
-            greaterThanOrEqualToConstant: MenuCardLayout.popUpControlMinWidth
-        ).isActive = true
-
-        let stack = NSStackView()
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 0
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        let heading = MenuCardLayout.sectionHeading(
-            title: localized("General"),
-            symbolName: "gearshape"
-        )
-        let launchRow = MenuCardLayout.row(
-            title: localized("Open at Login"),
-            detail: nil,
-            trailing: launchAtLoginSwitch
-        )
-        let menuBarRow = MenuCardLayout.row(
-            title: localized("Show in Menu Bar"),
-            detail: localized("To restore the icon, reopen the app from Spotlight"),
-            trailing: showInMenuBarSwitch
-        )
-        let languageRow = MenuCardLayout.row(
-            title: localized("Language"),
-            detail: nil,
-            trailing: languageButton
-        )
-        stack.addArrangedSubview(heading)
-        stack.addArrangedSubview(activeInputsController.view)
-        MenuCardLayout.addSeparator(to: stack)
-        stack.addArrangedSubview(languageRow)
-        MenuCardLayout.addSeparator(to: stack)
-        stack.addArrangedSubview(launchRow)
-        MenuCardLayout.addSeparator(to: stack)
-        stack.addArrangedSubview(menuBarRow)
-
-        card.contentView?.addSubview(stack)
-        if let contentView = card.contentView {
-            NSLayoutConstraint.activate([
-                stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-                stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-                stack.topAnchor.constraint(equalTo: contentView.topAnchor),
-                stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-                heading.widthAnchor.constraint(equalTo: stack.widthAnchor),
-                activeInputsController.view.widthAnchor.constraint(equalTo: stack.widthAnchor),
-                languageRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-                launchRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-                menuBarRow.widthAnchor.constraint(equalTo: stack.widthAnchor)
-            ])
-        }
-        return card
-    }
-
-    private func makeQuitCard() -> NSView {
-        let card = NSBox()
-        card.boxType = .custom
-        card.borderWidth = 0
-        card.fillColor = .controlBackgroundColor
-        card.cornerRadius = MenuCardLayout.cardCornerRadius
-        card.contentViewMargins = .zero
-
-        let button = NSButton(title: localizedFormat("Quit %@", identity.brandName), target: self, action: #selector(exitAction))
-        button.bezelStyle = .inline
+        button.font = AppStyle.Font.body
         button.isBordered = false
-        button.alignment = .left
-        button.contentTintColor = .labelColor
-        button.font = AppStyle.Font.controlLabel
-        button.translatesAutoresizingMaskIntoConstraints = false
-        card.contentView?.addSubview(button)
-        if let contentView = card.contentView {
-            card.heightAnchor.constraint(equalToConstant: MenuCardLayout.simpleRowHeight).isActive = true
-            NSLayoutConstraint.activate([
-                button.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 15),
-                button.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
-                button.topAnchor.constraint(equalTo: contentView.topAnchor),
-                button.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
-            ])
-        }
-        return card
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
+        button.contentTintColor = .secondaryLabelColor
+        button.toolTip = localized("Settings")
+        button.setAccessibilityLabel(localized("Settings"))
+        button.widthAnchor.constraint(equalToConstant: AppStyle.Layout.settingsButtonSize.width).isActive = true
+        button.heightAnchor.constraint(equalToConstant: AppStyle.Layout.settingsButtonSize.height).isActive = true
+        return button
     }
 
-    private func refresh() {
-        let state = currentState()
-        resumeCard.isHidden = !state.isInputMonitoringPaused
-        launchAtLoginSwitch.isEnabled = state.isLaunchAtLoginAvailable
-        launchAtLoginSwitch.state = state.isLaunchAtLoginEnabled ? .on : .off
-        showInMenuBarSwitch.state = .on
-        refreshLanguageMenu()
+    private func refresh(isPanel: Bool) {
+        updateMonitoringPresentation()
+        if presentation.isPanel != isPanel { presentation.isPanel = isPanel }
+        textToolsController.allowsCaseActions = isPanel
         textToolsController.refresh()
         keyboardSwitchingController.refresh()
-        activeInputsController.refresh()
     }
 
-    private func refreshLanguageMenu() {
-        languageButton.removeAllItems()
-        for language in AppLanguage.allCases {
-            languageButton.addItem(withTitle: language.displayName)
-            languageButton.lastItem?.representedObject = language.rawValue
-        }
-        if let index = AppLanguage.allCases.firstIndex(of: currentLanguage()) {
-            languageButton.selectItem(at: index)
+    @discardableResult
+    private func updateMonitoringPresentation() -> Bool {
+        let paused = currentState().isInputMonitoringPaused
+        guard presentation.isMonitoringPaused != paused else { return false }
+        presentation.isMonitoringPaused = paused
+        return true
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        let state = currentState()
+        loginItem.state = state.isLaunchAtLoginEnabled ? .on : .off
+        menuBarItem.state = userDefaults.bool(forKey: Self.hideStatusBarIconKey) ? .off : .on
+        for item in languageMenu.items {
+            item.state = item.representedObject as? String == currentLanguage().rawValue ? .on : .off
         }
     }
 
-    @objc private func selectLanguage(_ sender: NSPopUpButton) {
-        guard let identifier = sender.selectedItem?.representedObject as? String,
+    @objc private func selectLanguage(_ sender: NSMenuItem) {
+        guard let identifier = sender.representedObject as? String,
               let language = AppLanguage(rawValue: identifier) else { return }
         onLanguageChange(language)
     }
 
     private func showPanel() {
-        refresh()
+        settingsWindow?.close()
+        guard let controller = panel.contentViewController else { return }
+        moveContent(to: controller, host: panelBackground)
+        refresh(isPanel: true)
         updatePanelFrame()
+        updateScrollViewport()
         installEventMonitors()
         // Native controls use the key window’s accent. The panel stays nonactivating.
-        panel.makeKeyAndOrderFront(nil)
-        panel.makeFirstResponder(nil)
+        AppStyle.showWithoutInitialControlFocus(panel)
         panel.contentView?.layoutSubtreeIfNeeded()
     }
 
@@ -454,7 +389,7 @@ final class StatusMenuController: NSObject {
             return
         }
         panel.contentView?.layoutSubtreeIfNeeded()
-        let desiredHeight = contentStack.fittingSize.height
+        let desiredHeight = measureContent()
         let buttonRect = button.convert(button.bounds, to: nil)
         let screenRect = buttonWindow.convertToScreen(buttonRect)
         let screen = buttonWindow.screen ?? NSScreen.main
@@ -496,6 +431,7 @@ final class StatusMenuController: NSObject {
                 self.closePanel()
                 return nil
             }
+            if let window = event.window, window.level.rawValue >= NSWindow.Level.popUpMenu.rawValue { return event }
             if event.window !== self.panel, !self.mouseIsOverStatusItem() {
                 self.closePanel()
             }
@@ -532,16 +468,17 @@ final class StatusMenuController: NSObject {
         onResumeKeyboardSwitching()
     }
 
-    @objc private func toggleLaunchAtLogin(_ sender: NSSwitch) {
-        onLaunchAtLoginChange(sender.state == .on)
-        refresh()
+    @objc private func toggleLaunchAtLogin() {
+        onLaunchAtLoginChange(!currentState().isLaunchAtLoginEnabled)
     }
 
-    @objc private func toggleShowInMenuBar(_ sender: NSSwitch) {
-        guard sender.state == .off else { return }
-        closePanel()
-        DispatchQueue.main.async { [weak self] in
-            self?.hideIcon()
+    @objc private func toggleShowInMenuBar() {
+        if userDefaults.bool(forKey: Self.hideStatusBarIconKey) {
+            showIcon()
+        } else {
+            let wasPanelVisible = panel.isVisible
+            hideIcon()
+            if wasPanelVisible { showSettings() }
         }
     }
 
@@ -550,10 +487,20 @@ final class StatusMenuController: NSObject {
         aboutWindowController.showWindow()
     }
 
+    @objc private func openAvailableRelease() {
+        guard let availableReleaseURL = presentation.releaseURL else { return }
+        closePanel()
+        NSWorkspace.shared.open(availableReleaseURL)
+    }
+
     @objc private func exitAction() {
         closePanel()
         onExit()
     }
+}
+
+private final class StatusScrollDocumentView: NSView {
+    override var isFlipped: Bool { true }
 }
 
 private final class StatusPanel: NSPanel {
@@ -569,6 +516,12 @@ private final class StatusPanel: NSPanel {
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    override func sendEvent(_ event: NSEvent) {
+        let previous = firstResponder
+        super.sendEvent(event)
+        AppStyle.clearUnchangedFocus(in: self, after: event, previous: previous)
+    }
 }
 
 private final class RoundedPanelShadowView: NSView {

@@ -85,6 +85,22 @@ final class GitHubReleaseCheckerTests: XCTestCase {
         XCTAssertEqual(results, [.upToDate])
     }
 
+    func testManualCheckCanJoinAnInProgressStartupCheck() async {
+        let transport = ReleaseTransportFake()
+        let checker = makeChecker(transport)
+        var startupResult: ReleaseUpdateResult?
+        var manualResult: ReleaseUpdateResult?
+        checker.check { startupResult = $0 }
+        checker.check(joinInProgress: true) { manualResult = $0 }
+
+        XCTAssertEqual(transport.requests.count, 1)
+        transport.completions[0](releaseData("v1.1.0"), response(), nil)
+        await flushMainQueue()
+
+        XCTAssertEqual(startupResult, .updateAvailable(tag: "v1.1.0", url: releaseURL))
+        XCTAssertEqual(manualResult, startupResult)
+    }
+
     func testNetworkFailureCompletesAndAllowsRetry() async {
         let transport = ReleaseTransportFake()
         let checker = makeChecker(transport)

@@ -8,7 +8,7 @@ let package = Package(
     name: "LanguageSwitcherKit",
     defaultLocalization: "en",
     platforms: [
-        .macOS(.v12)
+        .macOS(.v14)
     ],
     products: [
         .library(name: "LanguageSwitcherDomain", targets: ["LanguageSwitcherDomain"]),

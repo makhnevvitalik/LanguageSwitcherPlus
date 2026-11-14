@@ -27,6 +27,7 @@ final class AppController {
     private var isRecordingTextShortcut = false
 
     var onInputMonitoringUnavailable: (() -> Void)?
+    var onInputMonitoringStateChanged: (() -> Void)?
     var onAccessibilityUnavailable: (() -> Void)?
     var onTextActionResult: ((PerformTextActionResult) -> Void)?
 
@@ -261,6 +262,7 @@ final class AppController {
     }
 
     private func configureKeyboardMonitor() {
+        defer { onInputMonitoringStateChanged?() }
         stopKeyboardMonitoring()
         let features = activeMonitoringFeatures
         guard features.isMonitoringRequired else {
@@ -294,6 +296,7 @@ final class AppController {
             },
             onUnavailable: { [weak self] in
                 self?.stopKeyboardMonitoring()
+                self?.onInputMonitoringStateChanged?()
                 self?.onInputMonitoringUnavailable?()
             },
             diagnostics: TextActionDebugJournal.handler(component: "monitor")

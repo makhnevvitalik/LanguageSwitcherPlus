@@ -31,6 +31,16 @@
         }
       }
     },
+    "%@ Settings": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки %@"
+          }
+        }
+      }
+    },
     "%@ can start automatically when you sign in, so keyboard switching is available right away.": {
       "localizations": {
         "ru": {
@@ -77,6 +87,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "О приложении"
+          }
+        }
+      }
+    },
+    "About…": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "О приложении…"
           }
         }
       }
@@ -206,7 +226,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "С прописной буквы"
+            "value": "Каждое слово с прописной"
           }
         }
       }
@@ -227,6 +247,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Изменить регистр выделенного текста."
+          }
+        }
+      }
+    },
+    "Select text in another app. Use the menu bar icon to choose a case, or press your assigned shortcut.": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выделите текст в другом приложении. Выберите нужный регистр через значок в строке меню или нажмите назначенное сочетание клавиш."
           }
         }
       }
@@ -736,7 +766,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Пауза между нажатиями"
+            "value": "Максимальная пауза между нажатиями"
           }
         }
       }
@@ -746,7 +776,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Длительность короткого нажатия"
+            "value": "Максимальная длительность короткого нажатия"
           }
         }
       }
@@ -866,7 +896,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Нажмите и отпустите сочетание."
+            "value": "Нажмите и отпустите сочетание один раз."
           }
         }
       }
@@ -966,7 +996,17 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Повторите всё сочетание два раза."
+            "value": "Нажмите сочетание целиком дважды."
+          }
+        }
+      }
+    },
+    "Press the entire shortcut twice.": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нажмите сочетание целиком дважды."
           }
         }
       }
@@ -1077,6 +1117,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сочетания клавиш"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки"
           }
         }
       }
@@ -1291,16 +1341,6 @@
         }
       }
     },
-    "To restore the icon, reopen the app from Spotlight": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Чтобы вернуть значок, откройте приложение через Spotlight"
-          }
-        }
-      }
-    },
     "Try Again": {
       "localizations": {
         "ru": {
@@ -1347,6 +1387,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Верхний регистр"
+          }
+        }
+      }
+    },
+    "Update available": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Доступно обновление"
           }
         }
       }
