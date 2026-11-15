@@ -5,6 +5,13 @@ import LanguageSwitcherApplication
 import XCTest
 
 final class PermissionSetupPolicyTests: XCTestCase {
+    func testInputMonitoringRecoverySelectsOnlyTheActionThatMatchesCurrentAccess() {
+        XCTAssertEqual(InputMonitoringRecoveryAction(accessAllowed: false, hasRequestedAccess: false), .requestAccess)
+        XCTAssertEqual(InputMonitoringRecoveryAction(accessAllowed: false, hasRequestedAccess: true), .openSettings)
+        XCTAssertEqual(InputMonitoringRecoveryAction(accessAllowed: true, hasRequestedAccess: false), .restart)
+        XCTAssertEqual(InputMonitoringRecoveryAction(accessAllowed: true, hasRequestedAccess: true), .restart)
+    }
+
     func testTextShortcutSetupRequestsInputMonitoringFirst() {
         XCTAssertEqual(
             TextShortcutPermissionSetup.nextStep(

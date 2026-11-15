@@ -26,8 +26,13 @@ final class ApplicationCoordinator: NSObject {
     private let inputMonitoringPermission = LanguageSwitcherMacOS.InputMonitoringPermissionController()
     private var statusMenuController: StatusMenuController?
     private var shortcutSettingsWindowController: TextShortcutSettingsWindowController?
-    private var isShowingInputMonitoringWarning = false
-    private var isShowingAccessibilityWarning = false
+    private enum Warning: Hashable {
+        case inputMonitoring, accessibility, restartError, functionGlobe, commandConflict
+        case launchAtLogin, launchAtLoginApproval, launchAtLoginError
+    }
+
+    private let warnings = ModelessAlertPresenter<Warning>()
+    private var displayedInputMonitoringAction: InputMonitoringRecoveryAction?
     private var isRestarting = false
     private var isRecordingShortcut = false
     private var hasStarted = false
@@ -50,7 +55,11 @@ final class ApplicationCoordinator: NSObject {
         defer { isStartingInBackground = false }
         configureMenu()
         appController.onInputMonitoringStateChanged = { [weak self] in
-            self?.statusMenuController?.refreshMonitoringState()
+            guard let self else { return }
+            self.statusMenuController?.refreshMonitoringState()
+            if !self.appController.isInputMonitoringPaused {
+                self.dismissInputMonitoringWarning()
+            }
         }
         appController.onInputMonitoringUnavailable = { [weak self] in
             guard let self, !self.isStartingInBackground else { return }
@@ -87,12 +96,12 @@ final class ApplicationCoordinator: NSObject {
         guard hasStarted,
               !isStartingInBackground,
               !isRestarting,
-              !isRecordingShortcut,
-              !isShowingInputMonitoringWarning,
-              !isShowingAccessibilityWarning else {
+              !isRecordingShortcut else {
             return
         }
         startKeyboardMonitoringIfNeeded()
+        if appController.isAccessibilityAllowed { warnings.dismiss(.accessibility) }
+        if SMAppService.mainApp.status != .requiresApproval { warnings.dismiss(.launchAtLoginApproval) }
         continuePendingTextShortcutPermissionSetup()
     }
 
@@ -194,6 +203,8 @@ final class ApplicationCoordinator: NSObject {
                     case .commandShortcutConflict:
                         self.showKeyboardShortcutConflictWarning(issue: issue)
                     }
+                } else if enabled {
+                    self.warnings.dismiss(shortcut == .functionGlobe ? .functionGlobe : .commandConflict)
                 }
             },
             currentTapDuration: { [weak appController] in
@@ -281,7 +292,9 @@ final class ApplicationCoordinator: NSObject {
     private func resumeKeyboardSwitching() {
         startKeyboardMonitoringIfNeeded()
         if appController.isInputMonitoringPaused {
-            showInputMonitoringRecovery(allowSettingsFallback: true)
+            showInputMonitoringRecovery(userInitiated: true)
+        } else {
+            continuePendingTextShortcutPermissionSetup()
         }
     }
 
@@ -294,86 +307,103 @@ final class ApplicationCoordinator: NSObject {
         }
     }
 
-    private func showInputMonitoringRecovery(allowSettingsFallback: Bool = false) {
-        guard !isShowingInputMonitoringWarning,
-              !isShowingAccessibilityWarning,
-              !isRestarting,
-              allowSettingsFallback
-                || !hasRequestedInputMonitoring
-                || inputMonitoringPermission.isAllowed else {
-            return
-        }
-        isShowingInputMonitoringWarning = true
+    private var inputMonitoringRecoveryAction: InputMonitoringRecoveryAction {
+        InputMonitoringRecoveryAction(
+            accessAllowed: inputMonitoringPermission.isAllowed,
+            hasRequestedAccess: hasRequestedInputMonitoring
+        )
+    }
+
+    private func dismissInputMonitoringWarning() {
+        displayedInputMonitoringAction = nil
+        warnings.dismiss(.inputMonitoring)
+    }
+
+    private func showInputMonitoringRecovery(userInitiated: Bool = false) {
         DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            defer { self.isShowingInputMonitoringWarning = false }
-            guard self.appController.isInputMonitoringPaused else { return }
+            guard let self, !self.isRestarting, !self.isRecordingShortcut,
+                  self.appController.isInputMonitoringPaused else { return }
 
-            self.prepareForModalPresentation()
-            let isAllowed = self.inputMonitoringPermission.isAllowed
-            let shouldRequest = !isAllowed && !self.hasRequestedInputMonitoring
-            let alert = NSAlert()
-            if self.isTextShortcutPermissionSetupPending {
-                alert.messageText = localized("Step 1 of 2: Allow Input Monitoring")
-                alert.informativeText = localizedFormat(
-                    "%1$@ needs Input Monitoring to detect your global text shortcut. The shortcut is saved. Allow %1$@ in %2$@. If macOS asks, choose Quit & Reopen; the app will reopen and continue with Accessibility.",
-                    self.identity.productName,
-                    self.inputMonitoringSettingsPath
-                )
-            } else {
-                alert.messageText = localized("Input Monitoring is unavailable.")
-                alert.informativeText = localizedFormat(
-                    "Allow %1$@ in %2$@, then return to the app. If macOS asks, choose Quit & Reopen.",
-                    self.identity.productName,
-                    self.inputMonitoringSettingsPath
-                )
+            let action = self.inputMonitoringRecoveryAction
+            let wasOpen = self.displayedInputMonitoringAction != nil
+            if action == self.displayedInputMonitoringAction {
+                if userInitiated { self.warnings.raise(.inputMonitoring) }
+                return
             }
-            if shouldRequest {
-                alert.addButton(withTitle: localized("Grant Access"))
-            } else if isAllowed {
-                alert.addButton(
-                    withTitle: localizedFormat("Restart %@", self.identity.productName)
-                )
-            } else {
-                alert.addButton(withTitle: self.inputMonitoringSettingsButtonTitle)
-            }
-            alert.addButton(withTitle: localized("Later"))
+            guard userInitiated || wasOpen || action != .openSettings else { return }
+            self.dismissInputMonitoringWarning()
 
-            let response = alert.runModal()
-            alert.window.orderOut(nil)
-            if response == .alertFirstButtonReturn {
-                if shouldRequest {
-                    self.hasRequestedInputMonitoring = true
-                    _ = self.inputMonitoringPermission.requestAccess()
-                } else if isAllowed {
-                    self.restartApplication()
-                } else {
-                    _ = self.inputMonitoringPermission.openSettings()
+            let setupWasPending = self.isTextShortcutPermissionSetupPending
+            let alert = self.makeInputMonitoringAlert(action: action, setupWasPending: setupWasPending)
+            self.displayedInputMonitoringAction = action
+            self.showWarning(.inputMonitoring, alert: alert) { [weak self] accepted in
+                guard let self else { return }
+                self.displayedInputMonitoringAction = nil
+                guard self.appController.isInputMonitoringPaused else { return }
+                if accepted {
+                    self.performInputMonitoringRecovery(action)
+                } else if setupWasPending && self.isTextShortcutPermissionSetupPending {
+                    self.cancelPendingTextShortcutPermissionSetup()
                 }
-            } else if self.isTextShortcutPermissionSetupPending {
-                self.cancelPendingTextShortcutPermissionSetup()
             }
         }
     }
 
-    private func showAccessibilityRecovery() {
-        guard !isShowingAccessibilityWarning,
-              !isShowingInputMonitoringWarning,
-              !isRestarting else {
+    private func makeInputMonitoringAlert(action: InputMonitoringRecoveryAction, setupWasPending: Bool) -> NSAlert {
+        let alert = NSAlert()
+        if setupWasPending {
+            alert.messageText = localized("Step 1 of 2: Allow Input Monitoring")
+            alert.informativeText = localizedFormat(
+                "%1$@ needs Input Monitoring to detect your global text shortcut. The shortcut is saved. Allow %1$@ in %2$@. If macOS asks, choose Quit & Reopen; the app will reopen and continue with Accessibility.",
+                identity.productName,
+                inputMonitoringSettingsPath
+            )
+        } else {
+            alert.messageText = localized("Input Monitoring is unavailable.")
+            alert.informativeText = localizedFormat(
+                "Allow %1$@ in %2$@, then return to the app. If macOS asks, choose Quit & Reopen.",
+                identity.productName,
+                inputMonitoringSettingsPath
+            )
+        }
+        let title: String
+        switch action {
+        case .requestAccess: title = localized("Grant Access")
+        case .openSettings: title = localized("Open System Settings")
+        case .restart: title = localizedFormat("Restart %@", identity.productName)
+        }
+        alert.addButton(withTitle: title)
+        alert.addButton(withTitle: localized("Later"))
+        return alert
+    }
+
+    private func performInputMonitoringRecovery(_ action: InputMonitoringRecoveryAction) {
+        guard !isRestarting else { return }
+        guard action == inputMonitoringRecoveryAction else {
+            resumeKeyboardSwitching()
             return
         }
-        isShowingAccessibilityWarning = true
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            defer { self.isShowingAccessibilityWarning = false }
-            guard !self.appController.isAccessibilityAllowed else { return }
+        switch action {
+        case .requestAccess:
+            hasRequestedInputMonitoring = true
+            if inputMonitoringPermission.requestAccess() { resumeKeyboardSwitching() }
+        case .openSettings:
+            _ = inputMonitoringPermission.openSettings()
+        case .restart:
+            restartApplication()
+        }
+    }
 
-            self.prepareForModalPresentation()
+    private func showAccessibilityRecovery() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.isRestarting, !self.appController.isAccessibilityAllowed else { return }
+
+            let setupWasPending = self.isTextShortcutPermissionSetupPending
             let alert = NSAlert()
-            alert.messageText = self.isTextShortcutPermissionSetupPending
+            alert.messageText = setupWasPending
                 ? localized("Step 2 of 2: Allow Accessibility")
                 : localized("Accessibility access is required.")
-            let nextAction = self.isTextShortcutPermissionSetupPending
+            let nextAction = setupWasPending
                 ? localized("Your shortcut is saved and will work after access is allowed.")
                 : localized("After allowing access, run the text action again.")
             alert.informativeText = localizedFormat(
@@ -385,10 +415,15 @@ final class ApplicationCoordinator: NSObject {
             alert.addButton(withTitle: localized("Open Accessibility Settings"))
             alert.addButton(withTitle: localized("Later"))
 
-            if alert.runModal() == .alertFirstButtonReturn {
-                self.appController.openAccessibilitySettings()
-            } else if self.isTextShortcutPermissionSetupPending {
-                self.cancelPendingTextShortcutPermissionSetup()
+            self.showWarning(.accessibility, alert: alert) { [weak self] accepted in
+                guard let self else { return }
+                if accepted {
+                    if !self.appController.isAccessibilityAllowed {
+                        self.appController.openAccessibilitySettings()
+                    }
+                } else if setupWasPending && self.isTextShortcutPermissionSetupPending {
+                    self.cancelPendingTextShortcutPermissionSetup()
+                }
             }
         }
     }
@@ -396,8 +431,6 @@ final class ApplicationCoordinator: NSObject {
     private func continuePendingTextShortcutPermissionSetup() {
         guard isTextShortcutPermissionSetupPending,
               !isRecordingShortcut,
-              !isShowingInputMonitoringWarning,
-              !isShowingAccessibilityWarning,
               !isRestarting else {
             return
         }
@@ -408,7 +441,8 @@ final class ApplicationCoordinator: NSObject {
         case .inputMonitoring:
             showInputMonitoringRecovery()
         case .accessibility:
-            guard !hasPresentedPendingAccessibilityGuidance else { return }
+            guard appController.isKeyboardMonitoringRunning,
+                  !hasPresentedPendingAccessibilityGuidance else { return }
             hasPresentedPendingAccessibilityGuidance = true
             showAccessibilityRecovery()
         case .complete:
@@ -444,6 +478,8 @@ final class ApplicationCoordinator: NSObject {
     private func restartApplication(onFailure: (() -> Void)? = nil) {
         guard !isRestarting else { return }
         isRestarting = true
+        dismissInputMonitoringWarning()
+        warnings.dismiss(.restartError)
         let wasKeyboardMonitoringRunning = appController.isKeyboardMonitoringRunning
         appController.stopKeyboardMonitoring()
         let configuration = NSWorkspace.OpenConfiguration()
@@ -474,8 +510,7 @@ final class ApplicationCoordinator: NSObject {
                             self.identity.productName
                         )
                     alert.addButton(withTitle: localized("OK"))
-                    self.prepareForModalPresentation()
-                    alert.runModal()
+                    self.showWarning(.restartError, alert: alert)
                 }
             }
         }
@@ -484,14 +519,13 @@ final class ApplicationCoordinator: NSObject {
     private func showFunctionGlobeUnavailableWarning(issue: ModifierShortcutIssue) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.prepareForModalPresentation()
             let alert = NSAlert()
             alert.messageText = localized("Fn/Globe switching was turned off.")
             alert.informativeText = self.message(for: issue)
             alert.addButton(withTitle: localized("Open Keyboard Settings"))
             alert.addButton(withTitle: localized("Later"))
-            if alert.runModal() == .alertFirstButtonReturn {
-                self.appController.openFunctionGlobeSettings()
+            self.showWarning(.functionGlobe, alert: alert) { [weak self] accepted in
+                if accepted { self?.appController.openFunctionGlobeSettings() }
             }
         }
     }
@@ -499,12 +533,11 @@ final class ApplicationCoordinator: NSObject {
     private func showKeyboardShortcutConflictWarning(issue: ModifierShortcutIssue) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.prepareForModalPresentation()
             let alert = NSAlert()
             alert.messageText = localized("Command switching was turned off.")
             alert.informativeText = self.message(for: issue)
             alert.addButton(withTitle: localized("OK"))
-            alert.runModal()
+            self.showWarning(.commandConflict, alert: alert)
         }
     }
 
@@ -518,7 +551,6 @@ final class ApplicationCoordinator: NSObject {
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.prepareForModalPresentation()
             let alert = NSAlert()
             alert.messageText = localizedFormat(
                 "Start %@ at login?",
@@ -531,8 +563,8 @@ final class ApplicationCoordinator: NSObject {
             alert.addButton(withTitle: localized("Start at Login"))
             alert.addButton(withTitle: localized("Not Now"))
             defaults.set(true, forKey: Self.launchAtLoginPromptShownKey)
-            if alert.runModal() == .alertFirstButtonReturn {
-                self.setLaunchAtLoginEnabled(true)
+            self.showWarning(.launchAtLogin, alert: alert) { [weak self] accepted in
+                if accepted { self?.setLaunchAtLoginEnabled(true) }
             }
         }
     }
@@ -542,6 +574,8 @@ final class ApplicationCoordinator: NSObject {
     }
 
     private func setLaunchAtLoginEnabled(_ enabled: Bool) {
+        warnings.dismiss(.launchAtLogin)
+        warnings.dismiss(.launchAtLoginError)
         do {
             let service = SMAppService.mainApp
             if enabled {
@@ -553,6 +587,7 @@ final class ApplicationCoordinator: NSObject {
                 }
             } else if service.status == .enabled || service.status == .requiresApproval {
                 try service.unregister()
+                warnings.dismiss(.launchAtLoginApproval)
             }
         } catch {
             showLaunchAtLoginError(error)
@@ -562,7 +597,6 @@ final class ApplicationCoordinator: NSObject {
     private func showLaunchAtLoginApproval() {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.prepareForModalPresentation()
             let alert = NSAlert()
             alert.messageText = localizedFormat(
                 "Allow %@ to start at login",
@@ -574,8 +608,10 @@ final class ApplicationCoordinator: NSObject {
             )
             alert.addButton(withTitle: localized("Open Login Items Settings"))
             alert.addButton(withTitle: localized("Later"))
-            if alert.runModal() == .alertFirstButtonReturn {
-                SMAppService.openSystemSettingsLoginItems()
+            self.showWarning(.launchAtLoginApproval, alert: alert) { accepted in
+                if accepted, SMAppService.mainApp.status == .requiresApproval {
+                    SMAppService.openSystemSettingsLoginItems()
+                }
             }
         }
     }
@@ -583,26 +619,25 @@ final class ApplicationCoordinator: NSObject {
     private func showLaunchAtLoginError(_ error: Error) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.prepareForModalPresentation()
             let alert = NSAlert()
             alert.messageText = localized("Could not update Open at Login.")
             alert.informativeText = error.localizedDescription
             alert.addButton(withTitle: localized("OK"))
-            alert.runModal()
+            self.showWarning(.launchAtLoginError, alert: alert)
         }
     }
 
-    private func prepareForModalPresentation() {
+    private func showWarning(
+        _ warning: Warning,
+        alert: NSAlert,
+        onResponse: @escaping (Bool) -> Void = { _ in }
+    ) {
         statusMenuController?.dismissPanel()
-        NSApp.activate(ignoringOtherApps: true)
+        warnings.show(warning, alert: alert, onResponse: onResponse)
     }
 
     private var inputMonitoringSettingsPath: String {
         localized("System Settings > Privacy & Security > Input Monitoring")
-    }
-
-    private var inputMonitoringSettingsButtonTitle: String {
-        localized("Open System Settings")
     }
 
     private var accessibilitySettingsPath: String {

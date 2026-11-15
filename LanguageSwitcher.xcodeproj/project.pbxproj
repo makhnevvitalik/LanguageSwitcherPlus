@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DA0000012F00000100000001 /* ModelessAlertPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA0000022F00000100000001 /* ModelessAlertPresenter.swift */; };
 		D50000012F00000100000001 /* LicenseDocumentRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50000022F00000100000001 /* LicenseDocumentRenderer.swift */; };
 		B10000012F00000100000001 /* LanguageSwitcherDomain in Frameworks */ = {isa = PBXBuildFile; productRef = B10000052F00000100000001 /* LanguageSwitcherDomain */; };
 		B10000022F00000100000001 /* LanguageSwitcherApplication in Frameworks */ = {isa = PBXBuildFile; productRef = B10000062F00000100000001 /* LanguageSwitcherApplication */; };
@@ -42,6 +43,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		DA0000022F00000100000001 /* ModelessAlertPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelessAlertPresenter.swift; sourceTree = "<group>"; };
 		D50000022F00000100000001 /* LicenseDocumentRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseDocumentRenderer.swift; sourceTree = "<group>"; };
 		B100000A2F00000100000001 /* AppController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppController.swift; sourceTree = "<group>"; };
 		B100000B2F00000100000001 /* AppCompositionRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCompositionRoot.swift; sourceTree = "<group>"; };
@@ -174,6 +176,7 @@
 			children = (
 				A1B2C3D42D0AF0010000000A /* AboutWindowController.swift */,
 				A1B2C3D42D0AF0010000001A /* AboutContent.swift */,
+				DA0000022F00000100000001 /* ModelessAlertPresenter.swift */,
 				B20000172F00000100000001 /* TextShortcutSettingsWindowController.swift */,
 				B20000182F00000100000001 /* TextShortcutEditorSheetController.swift */,
 			);
@@ -289,6 +292,7 @@
 				B20000092F00000100000001 /* MenuCardLayout.swift in Sources */,
 				B200000A2F00000100000001 /* ActiveInputsMenuController.swift in Sources */,
 				B20000062F00000100000001 /* TextActionPresentation.swift in Sources */,
+				DA0000012F00000100000001 /* ModelessAlertPresenter.swift in Sources */,
 				B20000072F00000100000001 /* TextShortcutSettingsWindowController.swift in Sources */,
 				B20000082F00000100000001 /* TextShortcutEditorSheetController.swift in Sources */,
 				4C79BED02A553F0D006A793C /* AppDelegate.swift in Sources */,
@@ -423,7 +427,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"App/Preview Content\"";
 				DEVELOPMENT_TEAM = P66575H26Z;
 				ENABLE_APP_SANDBOX = YES;
@@ -464,7 +468,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"App/Preview Content\"";
 				DEVELOPMENT_TEAM = P66575H26Z;
 				ENABLE_APP_SANDBOX = YES;

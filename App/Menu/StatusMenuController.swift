@@ -17,6 +17,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     }
 
     private let statusItem: NSStatusItem
+    private let monitoringWarningBadge = StatusWarningBadge()
     private let identity: AppIdentity
     private let userDefaults: UserDefaults
     private let currentLanguage: () -> AppLanguage
@@ -203,6 +204,19 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             image.accessibilityDescription = identity.productName
             statusItem.button?.image = image
         }
+        if let button = statusItem.button {
+            button.setAccessibilityLabel(identity.productName)
+            monitoringWarningBadge.translatesAutoresizingMaskIntoConstraints = false
+            monitoringWarningBadge.setAccessibilityElement(false)
+            monitoringWarningBadge.isHidden = true
+            button.addSubview(monitoringWarningBadge)
+            NSLayoutConstraint.activate([
+                monitoringWarningBadge.widthAnchor.constraint(equalToConstant: 6),
+                monitoringWarningBadge.heightAnchor.constraint(equalToConstant: 6),
+                monitoringWarningBadge.topAnchor.constraint(equalTo: button.topAnchor, constant: 3),
+                monitoringWarningBadge.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -3)
+            ])
+        }
         statusItem.button?.toolTip = identity.productName
         statusItem.button?.target = self
         statusItem.button?.action = #selector(togglePanel)
@@ -347,6 +361,10 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         let paused = currentState().isInputMonitoringPaused
         guard presentation.isMonitoringPaused != paused else { return false }
         presentation.isMonitoringPaused = paused
+        let label = paused ? "\(identity.productName) — \(localized("Input Monitoring is paused"))" : identity.productName
+        statusItem.button?.toolTip = label
+        statusItem.button?.setAccessibilityLabel(label)
+        monitoringWarningBadge.isHidden = !paused
         return true
     }
 
@@ -496,6 +514,15 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     @objc private func exitAction() {
         closePanel()
         onExit()
+    }
+}
+
+private final class StatusWarningBadge: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.systemOrange.setFill()
+        NSBezierPath(ovalIn: bounds).fill()
     }
 }
 

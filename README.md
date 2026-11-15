@@ -67,7 +67,7 @@ Language Switcher Plus requires macOS 14 or later.
 | **Input Monitoring** | Language switching and global shortcuts |
 | **Accessibility** | Reading and replacing text for Text actions |
 
-Language Switcher Plus opens the relevant macOS settings page when a permission is needed. If macOS asks, choose **Quit & Reopen**, then start the action again.
+If Input Monitoring is paused, a dot appears on the menu bar icon and a warning appears in the settings. Use **Resume…** to review your next step. If macOS asks, choose **Quit & Reopen**, then start the action again.
 
 ### Text actions
 
@@ -152,7 +152,7 @@ Language Switcher Plus требует macOS 14 или новее.
 | **Мониторинг ввода** | Переключение языка и глобальные сочетания |
 | **Универсальный доступ** | Чтение и замена текста для действий с текстом |
 
-Когда требуется разрешение, Language Switcher Plus открывает нужный раздел настроек macOS. Если macOS предложит действие **Завершить и открыть снова**, выберите его, а затем повторите нужное действие.
+Если мониторинг ввода приостановлен, на значке в строке меню появляется точка, а в настройках — предупреждение. Нажмите **Возобновить…**, чтобы узнать, что делать дальше. Если macOS предложит действие **Завершить и открыть снова**, выберите его, а затем повторите нужное действие.
 
 ### Действия с текстом
 

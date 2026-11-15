@@ -21,3 +21,17 @@ public enum TextShortcutPermissionSetup {
         return .complete
     }
 }
+
+public enum InputMonitoringRecoveryAction: Equatable, Sendable {
+    case requestAccess
+    case openSettings
+    case restart
+
+    public init(accessAllowed: Bool, hasRequestedAccess: Bool) {
+        if accessAllowed {
+            self = .restart
+        } else {
+            self = hasRequestedAccess ? .openSettings : .requestAccess
+        }
+    }
+}
