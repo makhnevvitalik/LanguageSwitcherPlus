@@ -79,7 +79,8 @@ enum AppCompositionRoot {
             accessibilityPermission: accessibilityPermission,
             functionGlobeBehavior: LanguageSwitcherMacOS.FunctionGlobeSystemBehaviorController(),
             trackedTextBuffer: trackedTextBuffer,
-            inputContextTracker: inputContextTracker
+            inputContextTracker: inputContextTracker,
+            inputMonitoringPermission: InputMonitoringPermissionController()
         )
     }
 

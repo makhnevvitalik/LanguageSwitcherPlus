@@ -39,8 +39,7 @@ public enum TextActionShortcut: Codable, Equatable, Hashable, Sendable {
                   heldModifiers.subtracting(.textShortcutModifiers).isEmpty else {
                 return false
             }
-            guard let tappedModifier = tapKey.modifierMask else { return true }
-            return !heldModifiers.contains(tappedModifier)
+            return tapKey.accepts(heldModifiers)
         }
     }
 

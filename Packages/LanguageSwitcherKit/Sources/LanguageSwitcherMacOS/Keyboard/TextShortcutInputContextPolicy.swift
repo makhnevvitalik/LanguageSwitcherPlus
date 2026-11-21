@@ -4,33 +4,48 @@
 import LanguageSwitcherDomain
 
 struct TextShortcutInputContextPolicy {
-    private let shortcuts: [TextActionShortcut]
+    private let chords: Set<TextShortcutChord>
 
     init(shortcuts: [TextAction: TextActionShortcut]) {
-        self.shortcuts = Array(shortcuts.values)
+        chords = Set(shortcuts.values.compactMap(\.nonModifierChord))
     }
+
+    var hasAlphanumericShortcuts: Bool { chords.contains { $0.alphanumericKey != nil } }
 
     func shouldPreserveContext(for event: TextShortcutInputEvent) -> Bool {
         guard case let .keyDown(
-            .function(functionKey),
+            key,
             activeModifiers,
             _,
             isRepeat
         ) = event,
-              !isRepeat else {
+              key.modifierMask == nil, !isRepeat else {
             return false
         }
-        let key = TextShortcutKey.function(functionKey)
-        return shortcuts.contains { shortcut in
-            switch shortcut {
-            case let .once(chord), let .repeatTwice(chord):
-                return chord == TextShortcutChord(
-                    modifiers: activeModifiers,
-                    functionKey: functionKey
-                )
-            case let .holdAndTapTwice(heldModifiers, tapKey):
-                return tapKey == key && heldModifiers == activeModifiers
-            }
+        return matches(key, modifiers: activeModifiers)
+    }
+
+    private func matches(_ key: TextShortcutKey, modifiers: KeyModifiers) -> Bool {
+        chords.contains(TextShortcutChord(modifiers: modifiers, key: key))
+    }
+}
+
+extension TextShortcutKey {
+    var isAlphanumeric: Bool {
+        if case .alphanumeric = self { return true }
+        return false
+    }
+}
+
+extension TextActionShortcut {
+    var nonModifierChord: TextShortcutChord? {
+        guard isValidGlobalShortcut else { return nil }
+        switch self {
+        case let .once(chord), let .repeatTwice(chord):
+            return chord.nonModifierKey == nil ? nil : chord
+        case let .holdAndTapTwice(heldModifiers, tapKey):
+            guard tapKey.modifierMask == nil else { return nil }
+            return TextShortcutChord(modifiers: heldModifiers, key: tapKey)
         }
     }
 }

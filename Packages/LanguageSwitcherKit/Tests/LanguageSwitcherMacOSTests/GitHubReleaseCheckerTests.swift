@@ -114,6 +114,30 @@ final class GitHubReleaseCheckerTests: XCTestCase {
         XCTAssertEqual(transport.requests.count, 2)
     }
 
+    func testAutomaticChecksStartImmediatelyAndRepeatUntilCancelled() async throws {
+        let transport = ReleaseTransportFake()
+        let checker = makeChecker(transport)
+        let interval: Duration = .milliseconds(25)
+        let clock = ContinuousClock()
+        checker.startAutomaticChecks(interval: interval) { _ in }
+        checker.startAutomaticChecks(interval: interval) { _ in }
+        XCTAssertEqual(transport.requests.count, 1)
+        try await clock.sleep(for: interval * 2)
+        XCTAssertEqual(transport.requests.count, 1, "Automatic checks must not overlap")
+
+        transport.completions[0](releaseData("v1.0.2"), response(), nil)
+        let deadline = clock.now + .seconds(2)
+        while transport.requests.count < 2 && clock.now < deadline {
+            try await clock.sleep(for: .milliseconds(10))
+        }
+        XCTAssertEqual(transport.requests.count, 2)
+
+        checker.cancel()
+        XCTAssertTrue(transport.tasks.last?.cancelled == true)
+        try await clock.sleep(for: interval * 2)
+        XCTAssertEqual(transport.requests.count, 2, "Cancellation must stop future checks")
+    }
+
     func testDeinitializationCancelsPendingRequest() {
         let transport = ReleaseTransportFake()
         var checker: GitHubReleaseChecker? = makeChecker(transport)

@@ -17,7 +17,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     }
 
     private let statusItem: NSStatusItem
-    private let monitoringWarningBadge = StatusWarningBadge()
+    private let statusBadge = StatusBadge()
     private let identity: AppIdentity
     private let userDefaults: UserDefaults
     private let currentLanguage: () -> AppLanguage
@@ -25,6 +25,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     private let textToolsController: TextToolsMenuController
     private let keyboardSwitchingController: KeyboardSwitchingMenuController
     private let aboutWindowController: AboutWindowController
+    private let updateAvailability: UpdateAvailability
     private let currentState: () -> StatusMenuState
     private let onResumeKeyboardSwitching: () -> Void
     private let onLaunchAtLoginChange: (Bool) -> Void
@@ -51,6 +52,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         textToolsController: TextToolsMenuController,
         keyboardSwitchingController: KeyboardSwitchingMenuController,
         aboutWindowController: AboutWindowController,
+        updateAvailability: UpdateAvailability,
         currentState: @escaping () -> StatusMenuState,
         onResumeKeyboardSwitching: @escaping () -> Void,
         onLaunchAtLoginChange: @escaping (Bool) -> Void,
@@ -64,6 +66,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         self.textToolsController = textToolsController
         self.keyboardSwitchingController = keyboardSwitchingController
         self.aboutWindowController = aboutWindowController
+        self.updateAvailability = updateAvailability
         self.currentState = currentState
         self.onResumeKeyboardSwitching = onResumeKeyboardSwitching
         self.onLaunchAtLoginChange = onLaunchAtLoginChange
@@ -101,10 +104,10 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         closePanel()
     }
 
-    func setAvailableReleaseURL(_ url: URL?) {
-        guard presentation.releaseURL != url else { return }
-        presentation.releaseURL = url
+    func refreshUpdateAvailability() {
+        updateStatusBadge()
         resizeVisibleSurface()
+        aboutWindowController.refreshUpdateAvailability()
     }
 
     func refreshMonitoringState() {
@@ -205,19 +208,17 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             statusItem.button?.image = image
         }
         if let button = statusItem.button {
-            button.setAccessibilityLabel(identity.productName)
-            monitoringWarningBadge.translatesAutoresizingMaskIntoConstraints = false
-            monitoringWarningBadge.setAccessibilityElement(false)
-            monitoringWarningBadge.isHidden = true
-            button.addSubview(monitoringWarningBadge)
+            statusBadge.translatesAutoresizingMaskIntoConstraints = false
+            statusBadge.setAccessibilityElement(false)
+            button.addSubview(statusBadge)
             NSLayoutConstraint.activate([
-                monitoringWarningBadge.widthAnchor.constraint(equalToConstant: 6),
-                monitoringWarningBadge.heightAnchor.constraint(equalToConstant: 6),
-                monitoringWarningBadge.topAnchor.constraint(equalTo: button.topAnchor, constant: 3),
-                monitoringWarningBadge.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -3)
+                statusBadge.widthAnchor.constraint(equalToConstant: 6),
+                statusBadge.heightAnchor.constraint(equalToConstant: 6),
+                statusBadge.topAnchor.constraint(equalTo: button.topAnchor, constant: 3),
+                statusBadge.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -3)
             ])
         }
-        statusItem.button?.toolTip = identity.productName
+        updateStatusBadge()
         statusItem.button?.target = self
         statusItem.button?.action = #selector(togglePanel)
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -248,7 +249,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         canvas.addSubview(shadowContainer)
 
         hosting = NSHostingController(rootView: PanelContent(
-            presentation: presentation, name: identity.productName,
+            presentation: presentation, updateAvailability: updateAvailability, name: identity.productName,
             width: Self.panelContentWidth, settingsButton: makeSettingsButton(),
             textTools: textToolsController, keyboardSwitching: keyboardSwitchingController,
             resume: { [weak self] in self?.resumeInputMonitoring() },
@@ -358,14 +359,28 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
 
     @discardableResult
     private func updateMonitoringPresentation() -> Bool {
-        let paused = currentState().isInputMonitoringPaused
-        guard presentation.isMonitoringPaused != paused else { return false }
-        presentation.isMonitoringPaused = paused
-        let label = paused ? "\(identity.productName) — \(localized("Input Monitoring is paused"))" : identity.productName
+        let warning = currentState().monitoringWarning
+        guard presentation.monitoringWarning != warning else { return false }
+        presentation.monitoringWarning = warning
+        updateStatusBadge()
+        return true
+    }
+
+    private func updateStatusBadge() {
+        let detail: String?
+        if let warning = presentation.monitoringWarning {
+            statusBadge.color = .systemOrange
+            detail = warning.title
+        } else if updateAvailability.release != nil {
+            statusBadge.color = .systemBlue
+            detail = localized("Update available")
+        } else {
+            detail = nil
+        }
+        statusBadge.isHidden = detail == nil
+        let label = detail.map { "\(identity.productName) — \($0)" } ?? identity.productName
         statusItem.button?.toolTip = label
         statusItem.button?.setAccessibilityLabel(label)
-        monitoringWarningBadge.isHidden = !paused
-        return true
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -506,9 +521,9 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openAvailableRelease() {
-        guard let availableReleaseURL = presentation.releaseURL else { return }
+        guard let release = updateAvailability.release else { return }
         closePanel()
-        NSWorkspace.shared.open(availableReleaseURL)
+        NSWorkspace.shared.open(release.url)
     }
 
     @objc private func exitAction() {
@@ -517,11 +532,15 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     }
 }
 
-private final class StatusWarningBadge: NSView {
+private final class StatusBadge: NSView {
+    var color: NSColor = .systemOrange {
+        didSet { needsDisplay = true }
+    }
+
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.systemOrange.setFill()
+        color.setFill()
         NSBezierPath(ovalIn: bounds).fill()
     }
 }

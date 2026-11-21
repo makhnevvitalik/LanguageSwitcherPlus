@@ -7,6 +7,53 @@ import LanguageSwitcherDomain
 import XCTest
 
 final class TrackedTextEventEditorTests: XCTestCase {
+    func testAmbiguousBackspaceSkipsReplacementUntilFreshTyping() {
+        let fixture = Fixture(text: "a")
+        for event in ["क", "\u{094D}", "ष"] {
+            fixture.buffer.recordPrintableText(event, applicationID: "editor")
+        }
+        var result: TextReplacementResult?
+        func uppercase() {
+            XCTAssertTrue(fixture.editor.replaceTrackedText(
+                scope: .typedText,
+                transform: { TextTransformation(text: $0.uppercased()) },
+                completion: { result = $0 }
+            ))
+        }
+
+        fixture.buffer.recordBackspace(applicationID: "editor")
+        XCTAssertNil(fixture.buffer.snapshot(for: "editor"))
+        uppercase()
+        XCTAssertEqual(result, .contextChanged)
+        XCTAssertTrue(fixture.eventReplacer.calls.isEmpty)
+
+        fixture.buffer.recordBackspace(applicationID: "editor")
+        uppercase()
+        XCTAssertEqual(result, .contextChanged)
+        XCTAssertTrue(fixture.eventReplacer.calls.isEmpty)
+
+        fixture.buffer.recordPrintableText("new", applicationID: "editor")
+        uppercase()
+        XCTAssertEqual(result, .replaced(TextTransformation(text: "NEW")))
+        XCTAssertEqual(fixture.eventReplacer.calls, [.init(deleteCount: 3, text: "NEW")])
+    }
+
+    func testReplacementCommitsWhenCombiningMarkWasTypedInSeparateEvent() {
+        let fixture = Fixture(text: "e")
+        fixture.buffer.recordPrintableText("\u{301}x", applicationID: "editor")
+        var result: TextReplacementResult?
+
+        XCTAssertTrue(fixture.editor.replaceTrackedText(
+            scope: .lastWord,
+            transform: { TextTransformation(text: $0.uppercased()) },
+            completion: { result = $0 }
+        ))
+
+        XCTAssertEqual(result, .replaced(TextTransformation(text: "ÉX")))
+        XCTAssertEqual(fixture.eventReplacer.calls, [.init(deleteCount: 2, text: "ÉX")])
+        XCTAssertEqual(fixture.buffer.snapshot(for: "editor")?.text, "ÉX")
+    }
+
     func testTypedTextReplacesWholeTrackedBuffer() {
         let fixture = Fixture(text: "hello ghbdtn")
         var result: TextReplacementResult?

@@ -15,7 +15,13 @@ import LanguageSwitcherMacOS
 
 @MainActor
 final class AboutWindowController: NSObject, NSWindowDelegate {
+    private enum ManualCheckResult {
+        case upToDate
+        case failure(ReleaseUpdateFailure)
+    }
+
     private let identity: AppIdentity
+    private let updateAvailability: UpdateAvailability
     private var aboutWindow: NSWindow?
     private var licensesWindowController: LicensesAcknowledgementsWindowController?
     private var updateButton: NSButton?
@@ -23,14 +29,16 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     private var updateStatusLabel: NSTextField?
     private weak var contentStack: NSStackView?
     private let requestUpdateCheck: (@escaping (ReleaseUpdateResult) -> Void) -> Void
-    private var downloadURL: URL?
     private var updateRequestID: UUID?
+    private var manualCheckResult: ManualCheckResult?
 
     init(
         identity: AppIdentity,
+        updateAvailability: UpdateAvailability,
         requestUpdateCheck: @escaping (@escaping (ReleaseUpdateResult) -> Void) -> Void
     ) {
         self.identity = identity
+        self.updateAvailability = updateAvailability
         self.requestUpdateCheck = requestUpdateCheck
         super.init()
     }
@@ -39,6 +47,7 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
         if aboutWindow == nil {
             aboutWindow = makeAboutWindow()
         }
+        refreshUpdateControls()
 
         NSApp.activate(ignoringOtherApps: true)
         if let aboutWindow {
@@ -48,12 +57,16 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         updateRequestID = nil
-        downloadURL = nil
+        manualCheckResult = nil
         updateProgressIndicator?.stopAnimation(nil)
         updateProgressIndicator?.isHidden = true
-        updateButton?.title = localized("Check for Updates")
-        updateStatusLabel?.textColor = .secondaryLabelColor
-        setUpdateStatusText("")
+    }
+
+    func refreshUpdateAvailability() {
+        manualCheckResult = nil
+        if aboutWindow?.isVisible == true {
+            refreshUpdateControls()
+        }
     }
 
     private var copyrightText: String {
@@ -105,8 +118,8 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     @objc private func updateButtonPressed() {
-        if let downloadURL {
-            NSWorkspace.shared.open(downloadURL)
+        if let release = updateAvailability.release {
+            NSWorkspace.shared.open(release.url)
             return
         }
         checkForUpdates()
@@ -116,40 +129,53 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
         guard updateRequestID == nil else { return }
         let requestID = UUID()
         updateRequestID = requestID
-        downloadURL = nil
-        updateButton?.title = localized("Checking…")
-        setUpdateStatusText("")
+        manualCheckResult = nil
+        refreshUpdateControls()
         updateProgressIndicator?.isHidden = false
         updateProgressIndicator?.startAnimation(nil)
         requestUpdateCheck { [weak self] result in
             guard let self, self.updateRequestID == requestID else { return }
             self.updateRequestID = nil
-            self.showUpdateResult(result)
+            self.finishUpdateCheck(result)
         }
     }
 
-    private func showUpdateResult(_ result: ReleaseUpdateResult) {
+    private func finishUpdateCheck(_ result: ReleaseUpdateResult) {
         updateProgressIndicator?.stopAnimation(nil)
         updateProgressIndicator?.isHidden = true
 
         switch result {
         case .upToDate:
-            downloadURL = nil
+            manualCheckResult = .upToDate
+        case .updateAvailable:
+            manualCheckResult = nil
+        case let .failure(failure):
+            manualCheckResult = .failure(failure)
+        }
+        refreshUpdateControls()
+    }
+
+    private func refreshUpdateControls() {
+        if let release = updateAvailability.release {
+            updateButton?.title = localized("View Release")
+            updateStatusLabel?.textColor = .labelColor
+            setUpdateStatusText(localizedFormat("%@ is available.", release.tag))
+            return
+        }
+
+        switch manualCheckResult {
+        case .upToDate:
             updateButton?.title = localized("Check for Updates")
             updateStatusLabel?.textColor = AppStyle.Color.success
             setUpdateStatusText(localized("You’re up to date."))
-
-        case let .updateAvailable(tag, url):
-            downloadURL = url
-            updateButton?.title = localized("View Release")
-            updateStatusLabel?.textColor = .labelColor
-            setUpdateStatusText(localizedFormat("%@ is available.", tag))
-
         case let .failure(failure):
-            downloadURL = nil
             updateButton?.title = localized("Try Again")
             updateStatusLabel?.textColor = .systemRed
             setUpdateStatusText(updateFailureText(failure))
+        case nil:
+            updateButton?.title = updateRequestID == nil ? localized("Check for Updates") : localized("Checking…")
+            updateStatusLabel?.textColor = .secondaryLabelColor
+            setUpdateStatusText("")
         }
     }
 

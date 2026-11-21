@@ -24,7 +24,7 @@ protocol ReleaseRequestTask: AnyObject {
 
 extension URLSessionDataTask: ReleaseRequestTask {}
 
-/// Owns a single update request. UI controllers only render its result.
+/// Schedules background update checks and keeps at most one request in flight.
 @MainActor
 public final class GitHubReleaseChecker {
     typealias Completion = @Sendable (Data?, URLResponse?, Error?) -> Void
@@ -34,6 +34,7 @@ public final class GitHubReleaseChecker {
     private let releaseURL: URL
     private let currentVersion: () -> String?
     private let transport: Transport
+    private var automaticChecks: Task<Void, Never>?
     private var task: ReleaseRequestTask?
     private var requestID: UUID?
     private var completions: [(ReleaseUpdateResult) -> Void] = []
@@ -57,6 +58,24 @@ public final class GitHubReleaseChecker {
         self.releaseURL = releaseURL
         self.currentVersion = currentVersion
         self.transport = transport
+    }
+
+    public func startAutomaticChecks(completion: @escaping (ReleaseUpdateResult) -> Void) {
+        startAutomaticChecks(interval: .seconds(24 * 60 * 60), completion: completion)
+    }
+
+    func startAutomaticChecks(interval: Duration, completion: @escaping (ReleaseUpdateResult) -> Void) {
+        guard automaticChecks == nil else { return }
+        automaticChecks = Task { [weak self] in
+            let clock = ContinuousClock()
+            while !Task.isCancelled {
+                do { try await clock.sleep(for: interval) }
+                catch { return }
+                guard !Task.isCancelled else { return }
+                self?.check(completion: completion)
+            }
+        }
+        check(joinInProgress: true, completion: completion)
     }
 
     public func check(
@@ -89,13 +108,18 @@ public final class GitHubReleaseChecker {
     }
 
     public func cancel() {
+        automaticChecks?.cancel()
+        automaticChecks = nil
         requestID = nil
         completions.removeAll()
         task?.cancel()
         task = nil
     }
 
-    deinit { task?.cancel() }
+    deinit {
+        automaticChecks?.cancel()
+        task?.cancel()
+    }
 
     nonisolated static func evaluate(data: Data?, response: URLResponse?, error: Error?,
                                     currentVersion: String?, fallbackReleaseURL: URL) -> ReleaseUpdateResult {

@@ -22,7 +22,7 @@ public final class TISKeyboardLayoutProvider: KeyboardLayoutProvider {
         var characters: Set<Character> = []
         for keyCode in UInt16(0)..<128 {
             for modifiers in Self.conversionModifierStates {
-                guard let text = output(
+                guard let text = Self.output(
                     layoutData: sourceData,
                     keyCode: keyCode,
                     modifiers: modifiers
@@ -74,11 +74,11 @@ public final class TISKeyboardLayoutProvider: KeyboardLayoutProvider {
         var pairs: [KeyboardLayoutPair] = []
         for keyCode in keyCodes {
             for modifiers in modifierStates {
-                guard let sourceText = output(
+                guard let sourceText = Self.output(
                     layoutData: sourceData,
                     keyCode: keyCode,
                     modifiers: modifiers
-                ), let targetText = output(
+                ), let targetText = Self.output(
                     layoutData: targetData,
                     keyCode: keyCode,
                     modifiers: modifiers
@@ -95,7 +95,7 @@ public final class TISKeyboardLayoutProvider: KeyboardLayoutProvider {
         TISInputSourceCatalog.selectableInputSource(id: id)
     }
 
-    private func output(
+    static func output(
         layoutData: Data,
         keyCode: UInt16,
         modifiers: UInt32

@@ -81,16 +81,6 @@
         }
       }
     },
-    "About": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "О приложении"
-          }
-        }
-      }
-    },
     "About…": {
       "localizations": {
         "ru": {
@@ -127,6 +117,76 @@
           "stringUnit": {
             "state": "translated",
             "value": "Активные источники ввода"
+          }
+        }
+      }
+    },
+    "Add Finder Item to Dock": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить объект Finder в Dock"
+          }
+        }
+      }
+    },
+    "Add to Finder Sidebar": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить объект в боковое меню Finder"
+          }
+        }
+      }
+    },
+    "Align Center": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выровнять по центру"
+          }
+        }
+      }
+    },
+    "Align Left": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выровнять по левому краю"
+          }
+        }
+      }
+    },
+    "Align Right": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выровнять по правому краю"
+          }
+        }
+      }
+    },
+    "Ask Siri About Screen Area": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Спросить Siri об области экрана"
+          }
+        }
+      }
+    },
+    "Assign Anyway": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назначить всё равно"
           }
         }
       }
@@ -201,6 +261,36 @@
         }
       }
     },
+    "Bold": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Полужирный"
+          }
+        }
+      }
+    },
+    "Capture Entire Screen": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сделать снимок всего экрана"
+          }
+        }
+      }
+    },
+    "Capture Screen Area": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сделать снимок области экрана"
+          }
+        }
+      }
+    },
     "CC BY-SA 4.0 Legal Code": {
       "localizations": {
         "ru": {
@@ -231,6 +321,16 @@
         }
       }
     },
+    "Center Cursor or Selection in View": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать курсор или выделение по центру"
+          }
+        }
+      }
+    },
     "Change case": {
       "localizations": {
         "ru": {
@@ -247,6 +347,916 @@
           "stringUnit": {
             "state": "translated",
             "value": "Изменить регистр выделенного текста."
+          }
+        }
+      }
+    },
+    "The Fn/Globe key is unsupported": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Клавиша Fn/Globe не поддерживается"
+          }
+        }
+      }
+    },
+    "Close All Windows": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закрыть все окна"
+          }
+        }
+      }
+    },
+    "Close Window": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закрыть окно"
+          }
+        }
+      }
+    },
+    "Common keyboard shortcut": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Распространённое сочетание"
+          }
+        }
+      }
+    },
+    "Copy": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копировать"
+          }
+        }
+      }
+    },
+    "Copy Style": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скопировать стиль"
+          }
+        }
+      }
+    },
+    "Create Finder Alias": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Создать псевдоним в Finder"
+          }
+        }
+      }
+    },
+    "Cut": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вырезать"
+          }
+        }
+      }
+    },
+    "Cut Selection or Text to End of Paragraph": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вырезать выделение или текст до конца абзаца"
+          }
+        }
+      }
+    },
+    "Decrease Size": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Уменьшить размер"
+          }
+        }
+      }
+    },
+    "Delete Backward": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить символ слева"
+          }
+        }
+      }
+    },
+    "Delete Forward": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить символ справа"
+          }
+        }
+      }
+    },
+    "Duplicate Files or Go to Desktop": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дублировать файлы или открыть рабочий стол в диалоге"
+          }
+        }
+      }
+    },
+    "Eject Disk": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Извлечь диск"
+          }
+        }
+      }
+    },
+    "Find": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Найти"
+          }
+        }
+      }
+    },
+    "Find Misspelled Words": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Найти слова с ошибками"
+          }
+        }
+      }
+    },
+    "Find Next": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Найти далее"
+          }
+        }
+      }
+    },
+    "Find Previous or Go to Folder": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Найти предыдущее совпадение или перейти к папке"
+          }
+        }
+      }
+    },
+    "Finder Column View": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вид колонками в Finder"
+          }
+        }
+      }
+    },
+    "Finder Gallery View": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вид галереей в Finder"
+          }
+        }
+      }
+    },
+    "Finder Icon View": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вид значками в Finder"
+          }
+        }
+      }
+    },
+    "Finder List View": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вид списком в Finder"
+          }
+        }
+      }
+    },
+    "Focus Dock": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенести фокус на Dock"
+          }
+        }
+      }
+    },
+    "Focus Floating Window": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенести фокус на плавающее окно"
+          }
+        }
+      }
+    },
+    "Focus Menu Bar": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенести фокус на строку меню"
+          }
+        }
+      }
+    },
+    "Focus Previous Panel": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенести фокус на предыдущую панель"
+          }
+        }
+      }
+    },
+    "Focus Search": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перейти в поле поиска"
+          }
+        }
+      }
+    },
+    "Focus Status Menus": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенести фокус на меню состояния"
+          }
+        }
+      }
+    },
+    "Focus Window": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенести фокус на окно"
+          }
+        }
+      }
+    },
+    "Focus Window Drawer": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенести фокус на выдвижную панель окна"
+          }
+        }
+      }
+    },
+    "Focus Window Toolbar": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенести фокус на панель инструментов окна"
+          }
+        }
+      }
+    },
+    "Hide App": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скрыть приложение"
+          }
+        }
+      }
+    },
+    "Hide Other Apps": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скрыть другие приложения"
+          }
+        }
+      }
+    },
+    "Increase Display Contrast": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Повысить контрастность экрана"
+          }
+        }
+      }
+    },
+    "Increase Size": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Увеличить размер"
+          }
+        }
+      }
+    },
+    "Insert Line After Cursor": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вставить новую строку после курсора"
+          }
+        }
+      }
+    },
+    "Insert Link or Connect to Server": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вставить ссылку или подключиться к серверу"
+          }
+        }
+      }
+    },
+    "Invert Display Colors": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Инвертировать цвета экрана"
+          }
+        }
+      }
+    },
+    "Italic or Show File Info": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Курсив или сведения о файле"
+          }
+        }
+      }
+    },
+    "Lock Screen": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заблокировать экран"
+          }
+        }
+      }
+    },
+    "Log Out": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить сеанс"
+          }
+        }
+      }
+    },
+    "Log Out Without Confirmation": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить сеанс без подтверждения"
+          }
+        }
+      }
+    },
+    "Look Up Word": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Найти определение слова"
+          }
+        }
+      }
+    },
+    "Minimize All Windows": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Свернуть все окна"
+          }
+        }
+      }
+    },
+    "Minimize Window": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Свернуть окно"
+          }
+        }
+      }
+    },
+    "Move Down One Line": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перейти на строку ниже"
+          }
+        }
+      }
+    },
+    "Move One Character Backward": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перейти на символ назад"
+          }
+        }
+      }
+    },
+    "Move One Character Forward": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перейти на символ вперёд"
+          }
+        }
+      }
+    },
+    "Move to Beginning of Line or Paragraph": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перейти в начало строки или абзаца"
+          }
+        }
+      }
+    },
+    "Move to End of Line or Paragraph": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перейти в конец строки или абзаца"
+          }
+        }
+      }
+    },
+    "Move Up One Line": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перейти на строку выше"
+          }
+        }
+      }
+    },
+    "New Folder": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новая папка"
+          }
+        }
+      }
+    },
+    "New Folder With Selection": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Создать папку с выбранными объектами"
+          }
+        }
+      }
+    },
+    "New Smart Folder": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новая смарт-папка"
+          }
+        }
+      }
+    },
+    "Letter and digit shortcuts are paused": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сочетания с буквами и цифрами приостановлены"
+          }
+        }
+      }
+    },
+    "Letter and digit shortcuts need Accessibility": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для сочетаний с буквами и цифрами нужен «Универсальный доступ»"
+          }
+        }
+      }
+    },
+    "New Tab, Fonts or Finder Tab Bar": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новая вкладка, шрифты или панель вкладок Finder"
+          }
+        }
+      }
+    },
+    "New Window or Document": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новое окно или документ"
+          }
+        }
+      }
+    },
+    "Next App Window": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Следующее окно приложения"
+          }
+        }
+      }
+    },
+    "Next Finder Folder": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Следующая папка в Finder"
+          }
+        }
+      }
+    },
+    "Open": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть"
+          }
+        }
+      }
+    },
+    "Open Accessibility Shortcuts": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть быстрые команды универсального доступа"
+          }
+        }
+      }
+    },
+    "Open AirDrop": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть AirDrop"
+          }
+        }
+      }
+    },
+    "Open App Settings": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть настройки приложения"
+          }
+        }
+      }
+    },
+    "Open Computer in Finder": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть раздел «Компьютер» в Finder"
+          }
+        }
+      }
+    },
+    "Open Desktop": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть рабочий стол"
+          }
+        }
+      }
+    },
+    "Open Documents": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть «Документы»"
+          }
+        }
+      }
+    },
+    "Open Downloads": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть «Загрузки»"
+          }
+        }
+      }
+    },
+    "Open Help": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть меню «Справка»"
+          }
+        }
+      }
+    },
+    "Open Home Folder": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть домашнюю папку"
+          }
+        }
+      }
+    },
+    "Open Network": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть «Сеть»"
+          }
+        }
+      }
+    },
+    "Open Recents": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть «Недавние»"
+          }
+        }
+      }
+    },
+    "Open Screenshot Controls": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть панель снимков экрана"
+          }
+        }
+      }
+    },
+    "Open Utilities": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть «Утилиты»"
+          }
+        }
+      }
+    },
+    "Open iCloud Drive": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть iCloud Drive"
+          }
+        }
+      }
+    },
+    "Page Setup or Finder Preview": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Параметры страницы или просмотр в Finder"
+          }
+        }
+      }
+    },
+    "Paste": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вставить"
+          }
+        }
+      }
+    },
+    "Paste Style or Move Files": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вставить стиль или переместить файлы"
+          }
+        }
+      }
+    },
+    "Paste Text Cut With Control-K": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вставить текст, вырезанный через Control-K"
+          }
+        }
+      }
+    },
+    "Paste and Match Style": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вставить и согласовать стиль"
+          }
+        }
+      }
+    },
+    "Previous App Window": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Предыдущее окно приложения"
+          }
+        }
+      }
+    },
+    "Previous Finder Folder": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Предыдущая папка в Finder"
+          }
+        }
+      }
+    },
+    "Print": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Печать"
+          }
+        }
+      }
+    },
+    "Quick Look": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Быстрый просмотр"
+          }
+        }
+      }
+    },
+    "Quick Look Slideshow": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Слайд-шоу в быстром просмотре"
+          }
+        }
+      }
+    },
+    "Quit App": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить приложение"
+          }
+        }
+      }
+    },
+    "Redo": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Повторить"
+          }
+        }
+      }
+    },
+    "Reduce Display Contrast": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Снизить контрастность экрана"
+          }
+        }
+      }
+    },
+    "Refresh or Show Original": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновить страницу или показать оригинал"
+          }
+        }
+      }
+    },
+    "Save As or Duplicate": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохранить как или создать дубликат"
+          }
+        }
+      }
+    },
+    "Select All": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выделить всё"
           }
         }
       }
@@ -307,6 +1317,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Если текст выделен, действие применяется к нему; иначе — к последнему отслеживаемому слову."
+          }
+        }
+      }
+    },
+    "Show Desktop": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать рабочий стол"
+          }
+        }
+      }
+    },
+    "Show Finder View Options": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать параметры вида Finder"
+          }
+        }
+      }
+    },
+    "Spelling and Grammar": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Правописание и грамматика"
+          }
+        }
+      }
+    },
+    "A macOS shortcut may take precedence": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сочетание macOS может иметь приоритет"
           }
         }
       }
@@ -511,16 +1561,6 @@
         }
       }
     },
-    "General": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Основные"
-          }
-        }
-      }
-    },
     "GitHub returned HTTP %d.": {
       "localizations": {
         "ru": {
@@ -571,12 +1611,12 @@
         }
       }
     },
-    "Hold %@ · Tap F%d": {
+    "Hold %@ · Tap %@": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Удерживать %@ · Нажать F%d"
+            "value": "Удерживать %@ · Нажать %@"
           }
         }
       }
@@ -591,12 +1631,12 @@
         }
       }
     },
-    "Hold at least one modifier, then press F1–F20.": {
+    "Hold at least one modifier, then press the final key.": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Удерживайте хотя бы один модификатор, затем нажмите F1–F20."
+            "value": "Удерживайте хотя бы один модификатор, затем нажмите последнюю клавишу."
           }
         }
       }
@@ -851,16 +1891,6 @@
         }
       }
     },
-    "Open System Preferences": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Открыть Системные настройки"
-          }
-        }
-      }
-    },
     "Open System Settings": {
       "localizations": {
         "ru": {
@@ -901,12 +1931,12 @@
         }
       }
     },
-    "Modifier keys and F1–F20": {
+    "Modifiers, F1–F20, letters and digits": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Модификаторы и F1–F20"
+            "value": "Модификаторы, F1–F20, буквы и цифры"
           }
         }
       }
@@ -991,16 +2021,6 @@
         }
       }
     },
-    "Repeat the whole shortcut twice.": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Нажмите сочетание целиком дважды."
-          }
-        }
-      }
-    },
     "Press the entire shortcut twice.": {
       "localizations": {
         "ru": {
@@ -1017,6 +2037,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Перезапустить %@"
+          }
+        }
+      }
+    },
+    "Replaces “%@”.": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заменит «%@»."
           }
         }
       }
@@ -1201,36 +2231,6 @@
         }
       }
     },
-    "System Preferences > Keyboard": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Системные настройки > Клавиатура"
-          }
-        }
-      }
-    },
-    "System Preferences > Security & Privacy > Privacy > Accessibility": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Системные настройки > Защита и безопасность > Конфиденциальность > Универсальный доступ"
-          }
-        }
-      }
-    },
-    "System Preferences > Security & Privacy > Privacy > Input Monitoring": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Системные настройки > Защита и безопасность > Конфиденциальность > Мониторинг ввода"
-          }
-        }
-      }
-    },
     "System Settings > Keyboard": {
       "localizations": {
         "ru": {
@@ -1341,6 +2341,116 @@
         }
       }
     },
+    "This shortcut is already used by macOS": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сочетание занято macOS"
+          }
+        }
+      }
+    },
+    "Toggle Dock": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать или скрыть Dock"
+          }
+        }
+      }
+    },
+    "Toggle Finder Path Bar": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать или скрыть строку пути Finder"
+          }
+        }
+      }
+    },
+    "Toggle Finder Sidebar": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать или скрыть боковое меню Finder"
+          }
+        }
+      }
+    },
+    "Toggle Finder Status Bar": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать или скрыть строку состояния Finder"
+          }
+        }
+      }
+    },
+    "Toggle Finder Tab Bar": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать или скрыть панель вкладок Finder"
+          }
+        }
+      }
+    },
+    "Toggle Full Keyboard Focus": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Переключить режим навигации клавишей Tab"
+          }
+        }
+      }
+    },
+    "Toggle Full Screen": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Включить или выключить полноэкранный режим"
+          }
+        }
+      }
+    },
+    "Toggle Inspector": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать или скрыть инспектор"
+          }
+        }
+      }
+    },
+    "Toggle Toolbar": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать или скрыть панель инструментов"
+          }
+        }
+      }
+    },
+    "Transpose Characters": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поменять местами два символа у курсора"
+          }
+        }
+      }
+    },
     "Try Again": {
       "localizations": {
         "ru": {
@@ -1361,6 +2471,16 @@
         }
       }
     },
+    "Type to Siri": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ввести запрос для Siri"
+          }
+        }
+      }
+    },
     "Typed text": {
       "localizations": {
         "ru": {
@@ -1371,12 +2491,22 @@
         }
       }
     },
-    "Unknown version": {
+    "Underline": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Версия неизвестна"
+            "value": "Подчёркивание"
+          }
+        }
+      }
+    },
+    "Undo": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отменить"
           }
         }
       }
@@ -1401,22 +2531,22 @@
         }
       }
     },
-    "Use Shift, Control, Option, Command, or F1–F20.": {
+    "Use Control, Option, or Command with a letter or digit.": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Используйте Shift, Control, Option, Command или F1–F20."
+            "value": "Добавьте Control, Option или Command к букве или цифре."
           }
         }
       }
     },
-    "Version %@": {
+    "Use modifiers, F1–F20, or a letter or digit with modifiers.": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Версия %@"
+            "value": "Используйте модификаторы, F1–F20 или букву либо цифру с модификаторами."
           }
         }
       }

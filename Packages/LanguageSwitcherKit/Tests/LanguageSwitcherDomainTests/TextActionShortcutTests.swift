@@ -1,10 +1,39 @@
 // SPDX-FileCopyrightText: 2026 Vitalik Makhnev
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
+import Foundation
 import LanguageSwitcherDomain
 import XCTest
 
 final class TextActionShortcutTests: XCTestCase {
+    func testAlphanumericKeysRequireControlOptionOrCommandInEveryGesture() {
+        for rawValue in ["A", "Z", "0", "9"] {
+            let key = TextShortcutKey.alphanumeric(ShortcutAlphanumericKey(rawValue: rawValue)!)
+            for rawModifiers in UInt64(0)...15 {
+                let modifiers = KeyModifiers(rawValue: rawModifiers)
+                let allowed = modifiers != [] && modifiers != .shift
+                let chord = TextShortcutChord(modifiers: modifiers, key: key)
+                XCTAssertEqual(TextActionShortcut.once(chord).isValidGlobalShortcut, allowed)
+                XCTAssertEqual(TextActionShortcut.repeatTwice(chord).isValidGlobalShortcut, allowed)
+                XCTAssertEqual(TextActionShortcut.holdAndTapTwice(
+                    heldModifiers: modifiers,
+                    tapKey: key
+                ).isValidGlobalShortcut, allowed)
+            }
+        }
+        for unsupported in ["", "a", "Ж", "!", "10"] {
+            XCTAssertNil(ShortcutAlphanumericKey(rawValue: unsupported))
+        }
+    }
+
+    func testDecodesExistingShortcutWithoutAlphanumericKey() throws {
+        let stored = Data(#"{"once":{"_0":{"modifiers":4,"functionKey":13}}}"#.utf8)
+        XCTAssertEqual(
+            try JSONDecoder().decode(TextActionShortcut.self, from: stored),
+            .once(TextShortcutChord(modifiers: .control, functionKey: ShortcutFunctionKey(rawValue: 13)))
+        )
+    }
+
     func testSupportsFunctionKeysOneThroughTwenty() {
         XCTAssertEqual(ShortcutFunctionKey(rawValue: 1)?.rawValue, 1)
         XCTAssertEqual(ShortcutFunctionKey(rawValue: 20)?.rawValue, 20)

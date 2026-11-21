@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
 import AppKit
-@testable import LanguageSwitcherMacOS
+@testable import LanguageSwitcherPlusEdition
 import XCTest
 
 final class PasteboardSnapshotTests: XCTestCase {

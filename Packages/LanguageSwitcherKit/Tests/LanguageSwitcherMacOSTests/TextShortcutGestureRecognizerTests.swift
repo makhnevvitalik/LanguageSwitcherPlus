@@ -6,6 +6,61 @@ import XCTest
 @testable import LanguageSwitcherMacOS
 
 final class TextShortcutGestureRecognizerTests: XCTestCase {
+    func testModifiedLetterSupportsAllThreeGestures() {
+        let key = TextShortcutKey.alphanumeric(ShortcutAlphanumericKey(rawValue: "A")!)
+        let chord = TextShortcutChord(modifiers: .control, key: key)
+        var recognizer = makeRecognizer([
+            .convertToNextLayout: .once(chord),
+            .changeCase(.uppercase): .repeatTwice(chord),
+            .changeCase(.lowercase): .holdAndTapTwice(heldModifiers: .control, tapKey: key)
+        ])
+        func tap(at time: TimeInterval) -> TextShortcutRecognition {
+            XCTAssertEqual(recognizer.handle(.keyDown(
+                key, activeModifiers: .control, timestamp: time, isRepeat: false
+            )), .none)
+            return recognizer.handle(.keyUp(key, activeModifiers: .control, timestamp: time + 0.01))
+        }
+
+        func completeChord(at time: TimeInterval) -> TextShortcutRecognition {
+            _ = recognizer.handle(down(.control, .control, time))
+            XCTAssertEqual(tap(at: time + 0.01), .none)
+            return recognizer.handle(up(.control, [], time + 0.03))
+        }
+
+        XCTAssertEqual(completeChord(at: 1), .wait(chord))
+        XCTAssertEqual(recognizer.handleTimeout(chord: chord, at: 1.4, contextGeneration: 0), .convertToNextLayout)
+        XCTAssertEqual(completeChord(at: 2), .wait(chord))
+        XCTAssertEqual(completeChord(at: 2.1), .trigger(.changeCase(.uppercase)))
+        _ = recognizer.handle(down(.control, .control, 3))
+        XCTAssertEqual(tap(at: 3.1), .none)
+        XCTAssertEqual(tap(at: 3.2), .trigger(.changeCase(.lowercase)))
+        XCTAssertEqual(recognizer.handle(up(.control, [], 3.3)), .none)
+    }
+
+    func testModifiedLetterUsesModifiersAtLetterPress() {
+        let key = TextShortcutKey.alphanumeric(.init(rawValue: "K")!)
+        let chord = TextShortcutChord(modifiers: .command, key: key)
+        let shiftedChord = TextShortcutChord(modifiers: [.command, .shift], key: key)
+        for shiftWasReleasedBeforeLetter in [true, false] {
+            var recognizer = makeRecognizer([
+                .convertToNextLayout: .once(chord),
+                .changeCase(.uppercase): .once(shiftedChord)
+            ])
+            _ = recognizer.handle(down(.command, .command, 1))
+            if shiftWasReleasedBeforeLetter {
+                _ = recognizer.handle(down(.shift, [.command, .shift], 1.1))
+                _ = recognizer.handle(up(.shift, .command, 1.2))
+            }
+            _ = recognizer.handle(.keyDown(key, activeModifiers: .command, timestamp: 1.3, isRepeat: false))
+            if !shiftWasReleasedBeforeLetter {
+                _ = recognizer.handle(down(.shift, [.command, .shift], 1.4))
+                _ = recognizer.handle(up(.shift, .command, 1.5))
+            }
+            _ = recognizer.handle(.keyUp(key, activeModifiers: .command, timestamp: 1.6))
+            XCTAssertEqual(recognizer.handle(up(.command, [], 1.7)), .trigger(.convertToNextLayout))
+        }
+    }
+
     func testUniqueOnceGestureTriggersOnFullRelease() {
         let chord = TextShortcutChord(modifiers: [.shift, .option], functionKey: nil)
         var recognizer = makeRecognizer([.convertToNextLayout: .once(chord)])

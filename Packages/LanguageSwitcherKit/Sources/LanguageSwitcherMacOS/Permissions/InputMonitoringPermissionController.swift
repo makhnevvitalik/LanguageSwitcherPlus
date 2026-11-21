@@ -4,7 +4,11 @@
 import AppKit
 import CoreGraphics
 
-public final class InputMonitoringPermissionController {
+protocol InputMonitoringPermissionChecking: AnyObject {
+    var isAllowed: Bool { get }
+}
+
+public final class InputMonitoringPermissionController: InputMonitoringPermissionChecking {
     public init() {}
 
     public var isAllowed: Bool {

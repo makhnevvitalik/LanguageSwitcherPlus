@@ -8,6 +8,8 @@ import LanguageSwitcherMacOS
 
 @MainActor
 final class AppController {
+    private static let standaloneCommand = TextShortcutChord(modifiers: .command, functionKey: nil)
+
     private let inputSourceRepository: TISInputSourceRepository
     private let inputSourceSelectionStore: UserDefaultsInputSourceSelectionStore
     private let updateInputSourceSelection: UpdateInputSourceSelection
@@ -20,11 +22,12 @@ final class AppController {
     private let configureTextShortcut: ConfigureTextActionShortcut
     private let performTextActionUseCase: PerformTextAction
     private let accessibilityPermission: AccessibilityPermissionController
+    let inputMonitoringPermission: InputMonitoringPermissionController
     private let functionGlobeBehavior: LanguageSwitcherMacOS.FunctionGlobeSystemBehaviorController
     private let trackedTextBuffer: TrackedTextBuffer
     private let inputContextTracker: InputContextTracker
     private var keyboardMonitor: CGEventKeyboardMonitor?
-    private var isRecordingTextShortcut = false
+    private(set) var isRecordingTextShortcut = false
 
     var onInputMonitoringUnavailable: (() -> Void)?
     var onInputMonitoringStateChanged: (() -> Void)?
@@ -46,7 +49,8 @@ final class AppController {
         accessibilityPermission: AccessibilityPermissionController,
         functionGlobeBehavior: LanguageSwitcherMacOS.FunctionGlobeSystemBehaviorController,
         trackedTextBuffer: TrackedTextBuffer,
-        inputContextTracker: InputContextTracker
+        inputContextTracker: InputContextTracker,
+        inputMonitoringPermission: InputMonitoringPermissionController = InputMonitoringPermissionController()
     ) {
         self.inputSourceRepository = inputSourceRepository
         self.inputSourceSelectionStore = inputSourceSelectionStore
@@ -60,6 +64,7 @@ final class AppController {
         self.configureTextShortcut = configureTextShortcut
         self.performTextActionUseCase = performTextAction
         self.accessibilityPermission = accessibilityPermission
+        self.inputMonitoringPermission = inputMonitoringPermission
         self.functionGlobeBehavior = functionGlobeBehavior
         self.trackedTextBuffer = trackedTextBuffer
         self.inputContextTracker = inputContextTracker
@@ -71,6 +76,10 @@ final class AppController {
 
     var isKeyboardMonitoringRunning: Bool {
         keyboardMonitor?.isRunning ?? false
+    }
+
+    var textShortcutInterception: TextShortcutInterception {
+        keyboardMonitor?.textShortcutInterception ?? .inactive
     }
 
     var availableInputSources: [InputSource] {
@@ -237,7 +246,7 @@ final class AppController {
 
     private var reservedTextShortcuts: [TextActionShortcut] {
         keyboardPreferences.isEnabled(.command)
-            ? [.once(TextShortcutChord(modifiers: .command, functionKey: nil))]
+            ? [.once(Self.standaloneCommand)]
             : []
     }
 
@@ -299,7 +308,10 @@ final class AppController {
                 self?.onInputMonitoringStateChanged?()
                 self?.onInputMonitoringUnavailable?()
             },
-            diagnostics: TextActionDebugJournal.handler(component: "monitor")
+            diagnostics: TextActionDebugJournal.handler(component: "monitor"),
+            inputMonitoringPermission: inputMonitoringPermission,
+            accessibilityPermission: accessibilityPermission,
+            onInterceptionChanged: { [weak self] in self?.onInputMonitoringStateChanged?() }
         )
         keyboardMonitor = monitor
         guard monitor.start() else {
@@ -323,7 +335,7 @@ final class AppController {
 
     private var hasStandaloneCommandTextGesture: Bool {
         TextAction.allCases.contains {
-            textShortcutStore.shortcut(for: $0)?.usesCommandAlone == true
+            textShortcutStore.shortcut(for: $0)?.classicChord == Self.standaloneCommand
         }
     }
 }
@@ -336,11 +348,4 @@ enum ModifierShortcutUpdateResult: Equatable {
 enum ModifierShortcutIssue: Equatable {
     case functionGlobe(FunctionGlobeTrackingIssue)
     case commandShortcutConflict
-}
-
-private extension TextActionShortcut {
-    var usesCommandAlone: Bool {
-        guard let chord = classicChord else { return false }
-        return chord.modifiers == .command && chord.functionKey == nil
-    }
 }

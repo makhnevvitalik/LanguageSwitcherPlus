@@ -35,6 +35,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
     private let action: TextAction
     private let shortcuts: () -> [TextAction: TextActionShortcut]
     private let validate: (TextActionShortcut) -> TextActionShortcutValidationResult
+    private let checkConflict: (TextActionShortcut) -> TextShortcutConflict?
     private let save: (TextActionShortcut) -> ConfigureTextActionShortcutResult
     private let onRecordingChanged: (Bool) -> Void
     private let onFinish: (Bool) -> Void
@@ -44,15 +45,20 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
     private weak var parentWindow: NSWindow?
     private var eventMonitor: Any?
     private var classicModifierCandidate: KeyModifiers = []
-    private var pendingHoldFunction: (held: KeyModifiers, key: ShortcutFunctionKey)?
+    private var pendingHoldKey: (held: KeyModifiers, key: TextShortcutKey)?
+    private var discardingFnModifiers = false
     private var didFinish = false
+    private var displayedConflict: TextShortcutConflict?
 
     private let shortcutValueLabel = NSTextField(labelWithString: localized("Press a shortcut"))
     private let captureHintLabel = NSTextField(labelWithString: "")
     private let captureBox = ShortcutCaptureBox()
     private var patternButtons: [NSButton] = []
+    private let feedbackSlot = NSView()
+    private let feedbackBanner = NSBox()
+    private let feedbackIcon = NSImageView()
+    private let feedbackLabel = NSTextField(wrappingLabelWithString: "")
     private let relatedAssignmentsLabel = NSTextField(wrappingLabelWithString: "")
-    private let errorLabel = NSTextField(wrappingLabelWithString: "")
     private let saveButton = NSButton(title: localized("Save"), target: nil, action: nil)
 
     init(
@@ -60,6 +66,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         currentShortcut: TextActionShortcut?,
         shortcuts: @escaping () -> [TextAction: TextActionShortcut],
         validate: @escaping (TextActionShortcut) -> TextActionShortcutValidationResult,
+        checkConflict: ((TextActionShortcut) -> TextShortcutConflict?)? = nil,
         save: @escaping (TextActionShortcut) -> ConfigureTextActionShortcutResult,
         onRecordingChanged: @escaping (Bool) -> Void,
         onFinish: @escaping (Bool) -> Void
@@ -69,6 +76,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         selectedKind = Self.kind(for: currentShortcut)
         self.shortcuts = shortcuts
         self.validate = validate
+        self.checkConflict = checkConflict ?? { TextShortcutConflictDetector.conflict(for: $0) }
         self.save = save
         self.onRecordingChanged = onRecordingChanged
         self.onFinish = onFinish
@@ -106,8 +114,13 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         exampleLabel.textColor = .secondaryLabelColor
 
         captureBox.focusDidChange = { [weak self] in
-            self?.resetCaptureState()
-            self?.refresh()
+            guard let self else { return }
+            self.resetCaptureState()
+            let modifiers = KeyModifiers(eventModifierFlags: NSEvent.modifierFlags)
+            if modifiers.intersection([.textShortcutModifiers, .function]).isEmpty {
+                self.discardingFnModifiers = false
+            }
+            self.refresh()
         }
         captureBox.setAccessibilityLabel(localized("Shortcut"))
         captureBox.titlePosition = .noTitle
@@ -165,15 +178,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
             button.widthAnchor.constraint(equalTo: patternOptions.widthAnchor).isActive = true
         }
 
-        relatedAssignmentsLabel.font = AppStyle.Font.supportingText
-        relatedAssignmentsLabel.textColor = .secondaryLabelColor
-        relatedAssignmentsLabel.maximumNumberOfLines = 2
-        relatedAssignmentsLabel.isHidden = true
-
-        errorLabel.font = AppStyle.Font.supportingText
-        errorLabel.textColor = .systemRed
-        errorLabel.maximumNumberOfLines = 2
-        errorLabel.isHidden = true
+        configureFeedbackSlot()
 
         let cancelButton = NSButton(
             title: localized("Cancel"),
@@ -197,8 +202,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
             patternOptions,
             shortcutTitle,
             captureBox,
-            relatedAssignmentsLabel,
-            errorLabel
+            feedbackSlot
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -232,15 +236,14 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
                 lessThanOrEqualTo: captureBox.contentView!.trailingAnchor,
                 constant: -12
             ),
-            relatedAssignmentsLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            errorLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            feedbackSlot.widthAnchor.constraint(equalTo: stack.widthAnchor),
             buttonStack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -AppStyle.Layout.windowInset),
             buttonStack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -18),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: buttonStack.topAnchor, constant: -12)
         ])
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 390),
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 408),
             styleMask: [.titled],
             backing: .buffered,
             defer: false
@@ -251,6 +254,54 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         window.contentView = content
         window.initialFirstResponder = captureBox
         return window
+    }
+
+    private func configureFeedbackSlot() {
+        feedbackBanner.titlePosition = .noTitle
+        feedbackBanner.boxType = .custom
+        feedbackBanner.borderWidth = 0
+        feedbackBanner.cornerRadius = 9
+        feedbackBanner.contentViewMargins = .zero
+        feedbackBanner.isHidden = true
+        feedbackBanner.translatesAutoresizingMaskIntoConstraints = false
+        feedbackSlot.addSubview(feedbackBanner)
+
+        feedbackIcon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+        feedbackIcon.translatesAutoresizingMaskIntoConstraints = false
+        feedbackLabel.maximumNumberOfLines = 2
+        feedbackLabel.lineBreakMode = .byTruncatingTail
+        feedbackLabel.translatesAutoresizingMaskIntoConstraints = false
+        let inner = feedbackBanner.contentView!
+        inner.addSubview(feedbackIcon)
+        inner.addSubview(feedbackLabel)
+
+        relatedAssignmentsLabel.font = AppStyle.Font.supportingText
+        relatedAssignmentsLabel.textColor = .secondaryLabelColor
+        relatedAssignmentsLabel.maximumNumberOfLines = 2
+        relatedAssignmentsLabel.lineBreakMode = .byTruncatingTail
+        relatedAssignmentsLabel.isHidden = true
+        relatedAssignmentsLabel.translatesAutoresizingMaskIntoConstraints = false
+        feedbackSlot.addSubview(relatedAssignmentsLabel)
+
+        NSLayoutConstraint.activate([
+            feedbackSlot.heightAnchor.constraint(equalToConstant: AppStyle.Layout.detailedRowHeight),
+            feedbackBanner.leadingAnchor.constraint(equalTo: feedbackSlot.leadingAnchor),
+            feedbackBanner.trailingAnchor.constraint(equalTo: feedbackSlot.trailingAnchor),
+            feedbackBanner.topAnchor.constraint(equalTo: feedbackSlot.topAnchor),
+            feedbackBanner.bottomAnchor.constraint(equalTo: feedbackSlot.bottomAnchor),
+            feedbackIcon.leadingAnchor.constraint(equalTo: inner.leadingAnchor, constant: 12),
+            feedbackIcon.centerYAnchor.constraint(equalTo: inner.centerYAnchor),
+            feedbackIcon.widthAnchor.constraint(equalToConstant: 16),
+            feedbackIcon.heightAnchor.constraint(equalToConstant: 16),
+            feedbackLabel.leadingAnchor.constraint(equalTo: feedbackIcon.trailingAnchor, constant: 8),
+            feedbackLabel.trailingAnchor.constraint(equalTo: inner.trailingAnchor, constant: -12),
+            feedbackLabel.centerYAnchor.constraint(equalTo: inner.centerYAnchor),
+            feedbackLabel.topAnchor.constraint(greaterThanOrEqualTo: inner.topAnchor, constant: 7),
+            feedbackLabel.bottomAnchor.constraint(lessThanOrEqualTo: inner.bottomAnchor, constant: -7),
+            relatedAssignmentsLabel.leadingAnchor.constraint(equalTo: feedbackSlot.leadingAnchor),
+            relatedAssignmentsLabel.trailingAnchor.constraint(equalTo: feedbackSlot.trailingAnchor),
+            relatedAssignmentsLabel.centerYAnchor.constraint(equalTo: feedbackSlot.centerYAnchor)
+        ])
     }
 
     private func installEventMonitor() {
@@ -285,36 +336,44 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
             cancel()
             return nil
         }
-        let modifiers = supportedModifiers(in: event)
-        if event.keyCode == 36, modifiers.isEmpty, saveButton.isEnabled {
-            savePressed()
+        let input = TextShortcutKeyInput(event: event)
+        let modifiers = input.modifiers
+        if event.keyCode == 36, modifiers.isEmpty, !input.hasFn, !discardingFnModifiers {
+            if saveButton.isEnabled, saveButton.keyEquivalent == "\r" { savePressed() }
             return nil
         }
-        guard !event.isARepeat,
-              let functionKey = ShortcutFunctionKey(keyCode: event.keyCode) else {
-            showError(localized("Use Shift, Control, Option, Command, or F1–F20."))
+        guard !event.isARepeat else { return nil }
+        guard let key = input.key else {
+            resetCaptureState()
+            showError(localized("Use modifiers, F1–F20, or a letter or digit with modifiers."))
+            return nil
+        }
+        if case .alphanumeric = key {
+            if input.rejectsFn { rejectFnModifier() }
+            if discardingFnModifiers { return nil }
+        }
+        guard key.accepts(modifiers) else {
+            resetCaptureState()
+            showError(localized("Use Control, Option, or Command with a letter or digit."))
             return nil
         }
 
         switch selectedKind {
         case .once, .repeatTwice:
-            let shortcut = classicShortcut(TextShortcutChord(
-                modifiers: modifiers,
-                functionKey: functionKey
-            ))
+            let shortcut = classicShortcut(TextShortcutChord(modifiers: modifiers, key: key))
             resetCaptureState()
             setDraft(shortcut)
         case .holdAndTapTwice:
             guard !modifiers.isEmpty else {
-                showError(localized("Hold at least one modifier, then press F1–F20."))
+                showError(localized("Hold at least one modifier, then press the final key."))
                 return nil
             }
-            pendingHoldFunction = (modifiers, functionKey)
+            pendingHoldKey = (modifiers, key)
             showCapture(
                 localizedFormat(
-                    "Hold %@ · Tap F%d",
+                    "Hold %@ · Tap %@",
                     KeyChordFormatter.modifierSymbols(for: modifiers),
-                    functionKey.rawValue
+                    KeyChordFormatter.string(for: key)
                 ),
                 hint: localized("Release the final key to record")
             )
@@ -324,14 +383,19 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
 
     private func handleKeyUp(_ event: NSEvent) -> NSEvent? {
         guard isCapturing(event) else { return event }
+        let input = TextShortcutKeyInput(event: event)
         guard selectedKind == .holdAndTapTwice,
-              let functionKey = ShortcutFunctionKey(keyCode: event.keyCode),
-              let pending = pendingHoldFunction,
-              pending.key == functionKey else {
+              let key = input.key,
+              let pending = pendingHoldKey,
+              pending.key == key else {
             return event
         }
-        pendingHoldFunction = nil
-        let active = supportedModifiers(in: event)
+        if input.rejectsFn {
+            rejectFnModifier()
+            return nil
+        }
+        pendingHoldKey = nil
+        let active = input.modifiers
         guard active == pending.held else {
             resetCaptureState()
             refresh()
@@ -340,17 +404,27 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         }
         setDraft(.holdAndTapTwice(
             heldModifiers: pending.held,
-            tapKey: .function(functionKey)
+            tapKey: key
         ))
         return nil
     }
 
     private func handleFlagsChanged(_ event: NSEvent) {
         guard isCapturing(event) else { return }
-        guard let modifier = ShortcutModifier(keyCode: event.keyCode) else {
+        let input = TextShortcutKeyInput(event: event)
+        let active = input.modifiers
+        if input.hasFn {
+            if !discardingFnModifiers { rejectFnModifier() }
             return
         }
-        let active = supportedModifiers(in: event)
+        if discardingFnModifiers {
+            // Ignore releases from the rejected gesture, even if Fn was released first.
+            if active.isEmpty { discardingFnModifiers = false }
+            return
+        }
+        guard case let .modifier(modifier)? = input.key else {
+            return
+        }
         let isDown = active.contains(modifier.mask)
 
         switch selectedKind {
@@ -371,6 +445,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
             }
 
         case .holdAndTapTwice:
+            guard pendingHoldKey == nil else { return }
             if isDown {
                 showCapture(
                     KeyChordFormatter.modifierSymbols(for: active),
@@ -423,15 +498,8 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         }
     }
 
-    private func supportedModifiers(in event: NSEvent) -> KeyModifiers {
-        KeyModifiers(eventModifierFlags: event.modifierFlags)
-            .intersection(.textShortcutModifiers)
-    }
-
     private func setDraft(_ shortcut: TextActionShortcut) {
         draft = shortcut
-        errorLabel.stringValue = ""
-        errorLabel.isHidden = true
         refresh()
     }
 
@@ -450,7 +518,7 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
             shortcutValueLabel.textColor = .secondaryLabelColor
             captureHintLabel.stringValue = selectedKind == .holdAndTapTwice
                 ? localized("Then press the final key")
-                : localized("Modifier keys and F1–F20")
+                : localized("Modifiers, F1–F20, letters and digits")
         }
         refreshCaptureBorder()
         refreshDraftStatus()
@@ -473,37 +541,37 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         shortcutValueLabel.textColor = .labelColor
         captureHintLabel.stringValue = hint
         refreshCaptureBorder()
-        saveButton.isEnabled = false
+        updateSaveButton(enabled: false)
         hideDraftStatus()
     }
 
     private func resetCaptureState() {
         classicModifierCandidate = []
-        pendingHoldFunction = nil
+        pendingHoldKey = nil
+    }
+
+    private func rejectFnModifier() {
+        resetCaptureState()
+        discardingFnModifiers = true
+        showError(localized("The Fn/Globe key is unsupported"))
     }
 
     private func refreshDraftStatus() {
         guard let draft else {
-            saveButton.isEnabled = false
+            updateSaveButton(enabled: false)
             hideDraftStatus()
             return
         }
         switch validate(draft) {
         case .valid:
-            saveButton.isEnabled = true
-            errorLabel.stringValue = ""
-            errorLabel.isHidden = true
-            refreshRelatedAssignments(for: draft)
+            showConflict(checkConflict(draft), for: draft)
         case let .conflict(conflictingAction):
-            saveButton.isEnabled = false
             showError(localizedFormat("Already assigned to %@.", conflictingAction.title))
         case .conflictWithReservedShortcut:
-            saveButton.isEnabled = false
             showError(
                 localized("Command alone is used by Keyboard switching. Choose different keys.")
             )
         case .invalid:
-            saveButton.isEnabled = false
             showError(localized("Choose a valid shortcut."))
         }
     }
@@ -524,20 +592,80 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
             : "\(related.count == 1 ? localized("Related shortcut") : localized("Related shortcuts")): "
                 + related.joined(separator: "; ")
         relatedAssignmentsLabel.isHidden = related.isEmpty
+        relatedAssignmentsLabel.toolTip = relatedAssignmentsLabel.isHidden ? nil : relatedAssignmentsLabel.stringValue
     }
 
     private func hideDraftStatus() {
-        relatedAssignmentsLabel.stringValue = ""
+        displayedConflict = nil
         relatedAssignmentsLabel.isHidden = true
-        errorLabel.stringValue = ""
-        errorLabel.isHidden = true
+        feedbackBanner.isHidden = true
     }
 
     private func showError(_ message: String) {
-        errorLabel.stringValue = message
-        errorLabel.isHidden = false
+        displayedConflict = nil
+        showFeedback(message)
+        updateSaveButton(enabled: false)
+    }
+
+    private func showFeedback(_ title: String, detail: String? = nil, isWarning: Bool = false) {
+        let color: NSColor = isWarning ? .systemOrange : .systemRed
+        let symbol = isWarning ? "exclamationmark.triangle.fill" : "exclamationmark.circle.fill"
+        feedbackBanner.fillColor = color.withAlphaComponent(0.10)
+        feedbackIcon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        feedbackIcon.contentTintColor = color
+        let message = NSMutableAttributedString(
+            string: title,
+            attributes: [
+                .font: detail == nil ? AppStyle.Font.body : AppStyle.Font.sectionTitle,
+                .foregroundColor: NSColor.labelColor
+            ]
+        )
+        if let detail {
+            message.append(NSAttributedString(
+                string: "\n" + detail,
+                attributes: [
+                    .font: AppStyle.Font.supportingText,
+                    .foregroundColor: NSColor.secondaryLabelColor
+                ]
+            ))
+        }
+        feedbackLabel.attributedStringValue = message
+        feedbackLabel.toolTip = message.string
         relatedAssignmentsLabel.isHidden = true
-        saveButton.isEnabled = false
+        feedbackBanner.isHidden = false
+    }
+
+    private func updateSaveButton(enabled: Bool, requiresConfirmation: Bool = false) {
+        saveButton.isEnabled = enabled
+        saveButton.title = localized(requiresConfirmation ? "Assign Anyway" : "Save")
+        saveButton.keyEquivalent = requiresConfirmation ? "" : "\r"
+    }
+
+    private func showConflict(_ conflict: TextShortcutConflict?, for draft: TextActionShortcut) {
+        switch conflict {
+        case nil:
+            hideDraftStatus()
+            refreshRelatedAssignments(for: draft)
+            updateSaveButton(enabled: true)
+        case .system:
+            showFeedback(localized("This shortcut is already used by macOS"))
+            updateSaveButton(enabled: false)
+        case let .documentedSystemCommand(command):
+            showFeedback(
+                localized("A macOS shortcut may take precedence"),
+                detail: localized(command),
+                isWarning: true
+            )
+            updateSaveButton(enabled: true, requiresConfirmation: true)
+        case let .commonCommand(command):
+            showFeedback(
+                localized("Common keyboard shortcut"),
+                detail: localizedFormat("Replaces “%@”.", localized(command)),
+                isWarning: true
+            )
+            updateSaveButton(enabled: true, requiresConfirmation: true)
+        }
+        displayedConflict = conflict
     }
 
     @objc private func changePattern(_ sender: NSButton) {
@@ -577,14 +705,21 @@ final class TextShortcutEditorSheetController: NSObject, NSWindowDelegate {
         default:
             draft = nil
         }
-        errorLabel.stringValue = ""
-        errorLabel.isHidden = true
         refresh()
     }
 
     @objc private func savePressed() {
-        guard let draft else { return }
-        switch save(draft) {
+        guard !didFinish, saveButton.isEnabled, let draft, sheetWindow != nil else { return }
+        let conflict = checkConflict(draft)
+        guard conflict == displayedConflict else {
+            showConflict(conflict, for: draft)
+            return
+        }
+        saveShortcut(draft)
+    }
+
+    private func saveShortcut(_ shortcut: TextActionShortcut) {
+        switch save(shortcut) {
         case .updated:
             finish(saved: true)
         case let .conflict(conflictingAction):

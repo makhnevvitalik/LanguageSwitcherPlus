@@ -25,7 +25,17 @@ let package = Package(
                 .product(
                     name: "LanguageSwitcherEdition",
                     package: "LanguageSwitcherKit"
-                )
+                ),
+                .product(name: "LanguageSwitcherApplication", package: "LanguageSwitcherKit"),
+                .product(name: "LanguageSwitcherMacOS", package: "LanguageSwitcherKit")
+            ]
+        ),
+        .testTarget(
+            name: "LanguageSwitcherPlusEditionTests",
+            dependencies: [
+                "LanguageSwitcherPlusEdition",
+                .product(name: "LanguageSwitcherApplication", package: "LanguageSwitcherKit"),
+                .product(name: "LanguageSwitcherMacOS", package: "LanguageSwitcherKit")
             ]
         )
     ]

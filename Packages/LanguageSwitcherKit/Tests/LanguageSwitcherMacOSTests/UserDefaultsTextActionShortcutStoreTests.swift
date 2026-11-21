@@ -7,6 +7,23 @@ import LanguageSwitcherMacOS
 import XCTest
 
 final class UserDefaultsTextActionShortcutStoreTests: XCTestCase {
+    func testPersistsAlphanumericChordAndHoldGesture() {
+        let defaults = makeDefaults()
+        let store = UserDefaultsTextActionShortcutStore(userDefaults: defaults)
+        let key = TextShortcutKey.alphanumeric(ShortcutAlphanumericKey(rawValue: "3")!)
+        let shortcuts: [TextAction: TextActionShortcut] = [
+            .convertToNextLayout: .once(TextShortcutChord(modifiers: [.option, .shift], key: key)),
+            .changeCase(.uppercase): .holdAndTapTwice(heldModifiers: .control, tapKey: key)
+        ]
+        for (action, shortcut) in shortcuts {
+            store.setShortcut(shortcut, for: action)
+        }
+        let reopened = UserDefaultsTextActionShortcutStore(userDefaults: defaults)
+        for (action, shortcut) in shortcuts {
+            XCTAssertEqual(reopened.shortcut(for: action), shortcut)
+        }
+    }
+
     func testPersistsClassicFunctionShortcut() {
         let defaults = makeDefaults()
         let store = UserDefaultsTextActionShortcutStore(userDefaults: defaults)

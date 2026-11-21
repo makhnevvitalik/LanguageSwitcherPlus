@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
 import CoreGraphics
+import LanguageSwitcherMacOS
 
 enum KeyboardCommand: Equatable {
     case copy
@@ -9,10 +10,6 @@ enum KeyboardCommand: Equatable {
 
 protocol KeyboardCommandSending: AnyObject {
     func send(_ command: KeyboardCommand) -> Bool
-}
-
-enum KeyboardCommandEventMarker {
-    static let value: Int64 = 0x4C_53_57_49_54_43_48
 }
 
 final class KeyboardCommandSender: KeyboardCommandSending {

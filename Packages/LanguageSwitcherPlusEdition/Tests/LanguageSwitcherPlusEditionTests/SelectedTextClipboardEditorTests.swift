@@ -4,6 +4,7 @@
 import AppKit
 import LanguageSwitcherApplication
 @testable import LanguageSwitcherMacOS
+@testable import LanguageSwitcherPlusEdition
 import XCTest
 
 final class SelectedTextClipboardEditorTests: XCTestCase {

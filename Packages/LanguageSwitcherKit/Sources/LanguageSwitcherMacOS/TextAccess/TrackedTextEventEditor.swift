@@ -74,6 +74,11 @@ public final class TrackedTextEventEditor: TrackedTextReplacing {
             return true
         }
         let contextGeneration = contextTracker.generation
+        guard !buffer.hasAmbiguousBackspace(for: applicationID) else {
+            record("snapshot.ambiguousBackspace app=\(applicationID)")
+            completion(.contextChanged)
+            return true
+        }
         guard let snapshot = buffer.snapshot(for: applicationID) else {
             record("snapshot.missing app=\(applicationID) scope=\(scope)")
             completion(.noText)
@@ -105,8 +110,10 @@ public final class TrackedTextEventEditor: TrackedTextReplacing {
             text: replacement,
             replacing: deletedInputs
         )
-        let completeInputs = Array(snapshot.inputs.dropLast(slice.deletedCharacterCount))
-            + replacementInputs
+        let completeInputs = snapshot.replacingSuffix(
+            deleting: slice.deletedCharacterCount,
+            with: replacementInputs
+        )
         record(
             "replace.ready deleteCharacters=\(slice.deletedCharacterCount) "
                 + "input=\(String(reflecting: slice.textToTransform + slice.trailingText)) "
@@ -132,11 +139,7 @@ public final class TrackedTextEventEditor: TrackedTextReplacing {
                 completion(.failed)
                 return
             }
-            guard self.buffer.commitReplacement(
-                slice.complete(with: transformed),
-                inputs: completeInputs,
-                expected: snapshot
-            ) else {
+            guard self.buffer.commitReplacement(completeInputs, expected: snapshot) else {
                 self.record("buffer.commit.failed")
                 completion(.failed)
                 return
@@ -153,15 +156,15 @@ public final class TrackedTextEventEditor: TrackedTextReplacing {
         text: String,
         replacing original: [TrackedKeyInput]
     ) -> [TrackedKeyInput] {
-        let characters = text.map(String.init)
+        let characters = Array(text)
         guard characters.count == original.count else {
             return characters.map {
-                TrackedKeyInput(text: $0, keyCode: 0, eventFlags: 0)
+                TrackedKeyInput(character: $0, keyCode: 0, eventFlags: 0)
             }
         }
         return zip(characters, original).map { character, input in
             TrackedKeyInput(
-                text: character,
+                character: character,
                 keyCode: input.keyCode,
                 eventFlags: input.eventFlags
             )

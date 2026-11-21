@@ -7,13 +7,13 @@ import SwiftUI
 @MainActor
 final class PanelPresentation: ObservableObject {
     @Published var isPanel = true
-    @Published var isMonitoringPaused = false
-    @Published var releaseURL: URL?
+    @Published var monitoringWarning: KeyboardMonitoringWarning?
 }
 
 @MainActor
 struct PanelContent: View {
     @ObservedObject var presentation: PanelPresentation
+    @ObservedObject var updateAvailability: UpdateAvailability
     let name: String
     let width: CGFloat
     let settingsButton: NSPopUpButton
@@ -27,12 +27,12 @@ struct PanelContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppStyle.Layout.cardSpacing) {
             header
-            if presentation.isMonitoringPaused {
+            if let warning = presentation.monitoringWarning {
                 HStack {
                     Image(systemName: "exclamationmark.shield").foregroundStyle(.orange)
-                    Text(localized("Input Monitoring is paused")).font(Font(AppStyle.Font.fieldLabel))
+                    Text(warning.title).font(Font(AppStyle.Font.fieldLabel))
                     Spacer()
-                    Button(localized("Resume…"), action: resume)
+                    Button(warning.buttonTitle, action: resume)
                 }
                 .padding(8).padding(.horizontal, 4)
                 .background(Color.yellow.opacity(0.16), in: RoundedRectangle(cornerRadius: AppStyle.Layout.cardCornerRadius))
@@ -64,7 +64,7 @@ struct PanelContent: View {
                     }.fixedSize(horizontal: false, vertical: true)
                 }
                 Group {
-                    if presentation.releaseURL != nil {
+                    if updateAvailability.release != nil {
                         Button(localized("Update available"), action: openRelease).buttonStyle(.link)
                     } else {
                         Color.clear.frame(width: 0).accessibilityHidden(true)

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
 import AppKit
+import Combine
 import Foundation
 import LanguageSwitcherApplication
 import LanguageSwitcherDomain
@@ -9,6 +10,31 @@ import LanguageSwitcherEdition
 import LanguageSwitcherLocalization
 import LanguageSwitcherMacOS
 import ServiceManagement
+
+@MainActor
+final class UpdateAvailability: ObservableObject {
+    struct Release: Equatable {
+        let tag: String
+        let url: URL
+    }
+
+    @Published private(set) var release: Release?
+
+    func apply(_ result: ReleaseUpdateResult) -> Bool {
+        let nextRelease: Release?
+        switch result {
+        case let .updateAvailable(tag, url):
+            nextRelease = Release(tag: tag, url: url)
+        case .upToDate:
+            nextRelease = nil
+        case .failure:
+            return false
+        }
+        guard release != nextRelease else { return false }
+        release = nextRelease
+        return true
+    }
+}
 
 @MainActor
 final class ApplicationCoordinator: NSObject {
@@ -19,11 +45,14 @@ final class ApplicationCoordinator: NSObject {
     private let identity: AppIdentity
     private let appController: AppController
     private let languageStore: AppLanguageStore
+    private let updateAvailability = UpdateAvailability()
     private lazy var updateChecker = GitHubReleaseChecker(
         apiURL: identity.latestReleaseAPIURL,
         releaseURL: identity.latestReleaseURL
     )
-    private let inputMonitoringPermission = LanguageSwitcherMacOS.InputMonitoringPermissionController()
+    private var inputMonitoringPermission: InputMonitoringPermissionController {
+        appController.inputMonitoringPermission
+    }
     private var statusMenuController: StatusMenuController?
     private var shortcutSettingsWindowController: TextShortcutSettingsWindowController?
     private enum Warning: Hashable {
@@ -34,7 +63,6 @@ final class ApplicationCoordinator: NSObject {
     private let warnings = ModelessAlertPresenter<Warning>()
     private var displayedInputMonitoringAction: InputMonitoringRecoveryAction?
     private var isRestarting = false
-    private var isRecordingShortcut = false
     private var hasStarted = false
     private var isStartingInBackground = false
     private var hasRequestedInputMonitoring = false
@@ -77,7 +105,7 @@ final class ApplicationCoordinator: NSObject {
         validateFunctionGlobeSetting()
         startKeyboardMonitoringIfNeeded()
         hasStarted = true
-        checkForUpdates()
+        updateChecker.startAutomaticChecks { [weak self] in self?.presentUpdateResult($0) }
         guard !inBackground else { return }
 
         showSettings()
@@ -96,7 +124,7 @@ final class ApplicationCoordinator: NSObject {
         guard hasStarted,
               !isStartingInBackground,
               !isRestarting,
-              !isRecordingShortcut else {
+              !appController.isRecordingTextShortcut else {
             return
         }
         startKeyboardMonitoringIfNeeded()
@@ -106,21 +134,20 @@ final class ApplicationCoordinator: NSObject {
     }
 
     func stop() {
+        updateChecker.cancel()
         appController.stopKeyboardMonitoring()
     }
 
-    private func checkForUpdates(completion: ((ReleaseUpdateResult) -> Void)? = nil) {
+    private func checkForUpdates(completion: @escaping (ReleaseUpdateResult) -> Void) {
         updateChecker.check(joinInProgress: true) { [weak self] result in
-            switch result {
-            case let .updateAvailable(_, url):
-                self?.statusMenuController?.setAvailableReleaseURL(url)
-            case .upToDate:
-                self?.statusMenuController?.setAvailableReleaseURL(nil)
-            case .failure:
-                break
-            }
-            completion?(result)
+            self?.presentUpdateResult(result)
+            completion(result)
         }
+    }
+
+    private func presentUpdateResult(_ result: ReleaseUpdateResult) {
+        guard updateAvailability.apply(result) else { return }
+        statusMenuController?.refreshUpdateAvailability()
     }
 
     private func configureMenu() {
@@ -139,7 +166,6 @@ final class ApplicationCoordinator: NSObject {
             },
             onRecordingChanged: { [weak self] isRecording in
                 guard let self else { return }
-                self.isRecordingShortcut = isRecording
                 self.appController.setTextShortcutRecording(isRecording)
                 if !isRecording {
                     self.continuePendingTextShortcutPermissionSetup()
@@ -234,19 +260,20 @@ final class ApplicationCoordinator: NSObject {
             },
             textToolsController: textTools,
             keyboardSwitchingController: keyboardSwitching,
-            aboutWindowController: AboutWindowController(identity: identity) { [weak self] completion in
+            aboutWindowController: AboutWindowController(
+                identity: identity, updateAvailability: updateAvailability
+            ) { [weak self] completion in
                 self?.checkForUpdates(completion: completion)
             },
-            currentState: { [weak self, weak appController] in
-                let isRecordingShortcut = self?.isRecordingShortcut ?? false
-                return StatusMenuState(
-                    isInputMonitoringPaused: !isRecordingShortcut
-                        && (appController?.isInputMonitoringPaused ?? false),
+            updateAvailability: updateAvailability,
+            currentState: { [weak self] in
+                StatusMenuState(
+                    monitoringWarning: self?.keyboardMonitoringWarning,
                     isLaunchAtLoginEnabled: Self.isLaunchAtLoginEnabled
                 )
             },
             onResumeKeyboardSwitching: { [weak self] in
-                self?.resumeKeyboardSwitching()
+                self?.recoverKeyboardMonitoring()
             },
             onLaunchAtLoginChange: { [weak self] enabled in
                 self?.setLaunchAtLoginEnabled(enabled)
@@ -289,6 +316,29 @@ final class ApplicationCoordinator: NSObject {
         }
     }
 
+    private var keyboardMonitoringWarning: KeyboardMonitoringWarning? {
+        guard !appController.isRecordingTextShortcut else { return nil }
+        if appController.isInputMonitoringPaused { return .inputMonitoringPaused }
+        switch appController.textShortcutInterception {
+        case .inactive, .active: return nil
+        case .needsAccessibility: return .textShortcutsNeedAccessibility
+        case .unavailable: return .textShortcutInterceptionUnavailable
+        }
+    }
+
+    private func recoverKeyboardMonitoring() {
+        switch keyboardMonitoringWarning {
+        case .inputMonitoringPaused:
+            resumeKeyboardSwitching()
+        case .textShortcutsNeedAccessibility:
+            appController.openAccessibilitySettings()
+        case .textShortcutInterceptionUnavailable:
+            appController.startKeyboardMonitoring()
+        case nil:
+            break
+        }
+    }
+
     private func resumeKeyboardSwitching() {
         startKeyboardMonitoringIfNeeded()
         if appController.isInputMonitoringPaused {
@@ -321,7 +371,7 @@ final class ApplicationCoordinator: NSObject {
 
     private func showInputMonitoringRecovery(userInitiated: Bool = false) {
         DispatchQueue.main.async { [weak self] in
-            guard let self, !self.isRestarting, !self.isRecordingShortcut,
+            guard let self, !self.isRestarting, !self.appController.isRecordingTextShortcut,
                   self.appController.isInputMonitoringPaused else { return }
 
             let action = self.inputMonitoringRecoveryAction
@@ -430,7 +480,7 @@ final class ApplicationCoordinator: NSObject {
 
     private func continuePendingTextShortcutPermissionSetup() {
         guard isTextShortcutPermissionSetupPending,
-              !isRecordingShortcut,
+              !appController.isRecordingTextShortcut,
               !isRestarting else {
             return
         }

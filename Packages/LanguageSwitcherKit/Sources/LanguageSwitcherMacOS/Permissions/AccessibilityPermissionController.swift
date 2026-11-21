@@ -4,7 +4,7 @@
 import AppKit
 import ApplicationServices
 
-protocol AccessibilityPermissionChecking: AnyObject {
+public protocol AccessibilityPermissionChecking: AnyObject {
     var isAllowed: Bool { get }
 }
 

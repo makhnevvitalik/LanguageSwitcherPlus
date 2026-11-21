@@ -13,7 +13,7 @@ final class CGEventTextReplacerTests: XCTestCase {
 
         XCTAssertTrue(replacer.replaceSuffix(
             deleting: 1,
-            with: [TrackedKeyInput(text: "ы", keyCode: 1, eventFlags: 0)],
+            with: [TrackedKeyInput(character: "ы", keyCode: 1, eventFlags: 0)],
             completion: { _ in }
         ))
 
@@ -37,7 +37,7 @@ final class CGEventTextReplacerTests: XCTestCase {
         XCTAssertTrue(replacer.replaceSuffix(
             deleting: 1,
             with: [
-                TrackedKeyInput(text: "ы", keyCode: 1, eventFlags: 0x20000)
+                TrackedKeyInput(character: "ы", keyCode: 1, eventFlags: 0x20000)
             ],
             completion: { result = $0 }
         ))
@@ -62,7 +62,7 @@ final class CGEventTextReplacerTests: XCTestCase {
         XCTAssertTrue(replacer.replaceSuffix(
             deleting: 2,
             with: Array("привет").map {
-                TrackedKeyInput(text: String($0), keyCode: 0, eventFlags: 0)
+                TrackedKeyInput(character: $0, keyCode: 0, eventFlags: 0)
             },
             completion: { result = $0 }
         ))
@@ -98,7 +98,7 @@ final class CGEventTextReplacerTests: XCTestCase {
 
         XCTAssertTrue(replacer.replaceSuffix(
             deleting: 0,
-            with: [TrackedKeyInput(text: "👨‍👩‍👧", keyCode: 0, eventFlags: 0)],
+            with: [TrackedKeyInput(character: "👨‍👩‍👧", keyCode: 0, eventFlags: 0)],
             completion: { _ in }
         ))
 

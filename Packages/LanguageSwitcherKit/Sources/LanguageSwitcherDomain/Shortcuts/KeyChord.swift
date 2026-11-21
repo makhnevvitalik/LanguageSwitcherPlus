@@ -40,28 +40,70 @@ public struct ShortcutFunctionKey: RawRepresentable, Codable, Hashable, Sendable
     }
 }
 
+/// An A–Z or 0–9 key named by its position on a US keyboard.
+public struct ShortcutAlphanumericKey: RawRepresentable, Codable, Hashable, Sendable {
+    public let rawValue: String
+
+    public init?(rawValue: String) {
+        guard rawValue.utf8.count == 1, let byte = rawValue.utf8.first,
+              (65...90).contains(byte) || (48...57).contains(byte) else { return nil }
+        self.rawValue = rawValue
+    }
+}
+
 public enum TextShortcutKey: Codable, Hashable, Sendable {
     case modifier(ShortcutModifier)
     case function(ShortcutFunctionKey)
+    case alphanumeric(ShortcutAlphanumericKey)
 
     public var modifierMask: KeyModifiers? {
         guard case let .modifier(modifier) = self else { return nil }
         return modifier.mask
+    }
+
+    public func accepts(_ modifiers: KeyModifiers) -> Bool {
+        switch self {
+        case let .modifier(modifier): !modifiers.contains(modifier.mask)
+        case .function: true
+        case .alphanumeric: !modifiers.intersection([.control, .option, .command]).isEmpty
+        }
     }
 }
 
 public struct TextShortcutChord: Codable, Hashable, Sendable {
     public let modifiers: KeyModifiers
     public let functionKey: ShortcutFunctionKey?
+    public let alphanumericKey: ShortcutAlphanumericKey?
 
-    public init(modifiers: KeyModifiers, functionKey: ShortcutFunctionKey?) {
+    public init(
+        modifiers: KeyModifiers,
+        functionKey: ShortcutFunctionKey?,
+        alphanumericKey: ShortcutAlphanumericKey? = nil
+    ) {
         self.modifiers = modifiers
         self.functionKey = functionKey
+        self.alphanumericKey = alphanumericKey
+    }
+
+    public init(modifiers: KeyModifiers, key: TextShortcutKey) {
+        switch key {
+        case let .modifier(modifier):
+            self.init(modifiers: modifiers.union(modifier.mask), functionKey: nil)
+        case let .function(functionKey):
+            self.init(modifiers: modifiers, functionKey: functionKey)
+        case let .alphanumeric(alphanumericKey):
+            self.init(modifiers: modifiers, functionKey: nil, alphanumericKey: alphanumericKey)
+        }
+    }
+
+    public var nonModifierKey: TextShortcutKey? {
+        functionKey.map(TextShortcutKey.function) ?? alphanumericKey.map(TextShortcutKey.alphanumeric)
     }
 
     public var isValid: Bool {
-        modifiers.subtracting(.textShortcutModifiers).isEmpty
-            && (!modifiers.isEmpty || functionKey != nil)
+        guard modifiers.subtracting(.textShortcutModifiers).isEmpty,
+              functionKey == nil || alphanumericKey == nil else { return false }
+        return nonModifierKey?.accepts(modifiers) ?? !modifiers.isEmpty
     }
 
     public var keys: Set<TextShortcutKey> {
@@ -70,8 +112,8 @@ public struct TextShortcutChord: Codable, Hashable, Sendable {
                 modifiers.contains($0.mask) ? TextShortcutKey.modifier($0) : nil
             }
         )
-        if let functionKey {
-            result.insert(.function(functionKey))
+        if let nonModifierKey {
+            result.insert(nonModifierKey)
         }
         return result
     }

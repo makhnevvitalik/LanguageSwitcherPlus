@@ -6,6 +6,19 @@ import XCTest
 @testable import LanguageSwitcherMacOS
 
 final class TextShortcutInputContextPolicyTests: XCTestCase {
+    func testAlphanumericKeyDownRequiresExactConfiguredModifiers() {
+        let key = TextShortcutKey.alphanumeric(ShortcutAlphanumericKey(rawValue: "A")!)
+        let policy = TextShortcutInputContextPolicy(shortcuts: [
+            .convertToNextLayout: .once(TextShortcutChord(modifiers: .control, key: key))
+        ])
+        for modifiers: KeyModifiers in [[], .shift, .option, .control, [.control, .shift]] {
+            let event = TextShortcutInputEvent.keyDown(
+                key, activeModifiers: modifiers, timestamp: 1, isRepeat: false
+            )
+            XCTAssertEqual(policy.shouldPreserveContext(for: event), modifiers == .control)
+        }
+    }
+
     func testClassicFunctionKeyPreservesContextOnlyForExactConfiguredKeyDown() {
         let f13 = ShortcutFunctionKey(rawValue: 13)!
         let f14 = ShortcutFunctionKey(rawValue: 14)!

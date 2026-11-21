@@ -31,9 +31,10 @@ struct TextShortcutGestureRecognizer {
     private let holdActions: [HoldGesture: TextAction]
     private let maximumInterval: TimeInterval
 
-    private var activeFunctionKeys: Set<ShortcutFunctionKey> = []
+    private var activeNonModifierKeys: Set<TextShortcutKey> = []
     private var activeKeys: Set<TextShortcutKey> = []
     private var cycleKeys: Set<TextShortcutKey> = []
+    private var alphanumericChord: TextShortcutChord?
     private var cycleIsInvalid = false
     private var cycleIsConsumed = false
     private var pendingClassic: [TextShortcutChord: PendingClassic] = [:]
@@ -79,7 +80,7 @@ struct TextShortcutGestureRecognizer {
         case let .keyDown(key, modifiers, timestamp, isRepeat):
             guard !isRepeat else { return .none }
             synchronizeActiveKeys(key: key, isDown: true, modifiers: modifiers)
-            beginOrExtendCycle()
+            beginOrExtendCycle(key: key, modifiers: modifiers)
             handleHoldKeyDown(key, at: timestamp)
             return .none
 
@@ -118,11 +119,11 @@ struct TextShortcutGestureRecognizer {
         isDown: Bool,
         modifiers: KeyModifiers
     ) {
-        if case let .function(functionKey) = key {
+        if key.modifierMask == nil {
             if isDown {
-                activeFunctionKeys.insert(functionKey)
+                activeNonModifierKeys.insert(key)
             } else {
-                activeFunctionKeys.remove(functionKey)
+                activeNonModifierKeys.remove(key)
             }
         }
         activeKeys = Set(
@@ -130,12 +131,24 @@ struct TextShortcutGestureRecognizer {
                 modifiers.contains($0.mask) ? TextShortcutKey.modifier($0) : nil
             }
         )
-        activeKeys.formUnion(activeFunctionKeys.map(TextShortcutKey.function))
+        activeKeys.formUnion(activeNonModifierKeys)
     }
 
-    private mutating func beginOrExtendCycle() {
-        if cycleKeys.isEmpty && activeKeys.isEmpty { return }
-        cycleKeys.formUnion(activeKeys)
+    private mutating func beginOrExtendCycle(key: TextShortcutKey, modifiers: KeyModifiers) {
+        if case .alphanumeric = key {
+            // Use the same modifier snapshot that owns the initial key press.
+            let pressedChord = TextShortcutChord(modifiers: modifiers, key: key)
+            if let alphanumericChord {
+                cycleIsInvalid = cycleIsInvalid || alphanumericChord != pressedChord
+            } else {
+                cycleIsInvalid = cycleIsInvalid || cycleKeys.contains { $0.modifierMask == nil }
+                alphanumericChord = pressedChord
+            }
+        } else if alphanumericChord == nil {
+            cycleKeys.formUnion(activeKeys)
+        } else if key.modifierMask == nil {
+            cycleIsInvalid = true
+        }
     }
 
     private mutating func completeClassicCycleIfNeeded(
@@ -144,7 +157,7 @@ struct TextShortcutGestureRecognizer {
         guard activeKeys.isEmpty else { return .none }
         defer { resetPhysicalCycle() }
         guard !cycleIsInvalid, !cycleIsConsumed,
-              let chord = matchingClassicChord(for: cycleKeys) else {
+              let chord = alphanumericChord ?? matchingClassicChord(for: cycleKeys) else {
             pendingClassic.removeAll()
             return .none
         }
@@ -183,7 +196,7 @@ struct TextShortcutGestureRecognizer {
             }
             guard !state.tapIsDown,
                   activeModifiersExcludingTap(key) == gesture.heldModifiers,
-                  activeFunctionKeysExcludingTap(key).isEmpty else {
+                  activeNonModifierKeys.subtracting([key]).isEmpty else {
                 holdStates[gesture] = HoldState()
                 continue
             }
@@ -208,7 +221,7 @@ struct TextShortcutGestureRecognizer {
             var state = holdStates[gesture] ?? HoldState()
             guard state.tapIsDown,
                   activeModifierMask == gesture.heldModifiers,
-                  activeFunctionKeys.isEmpty else {
+                  activeNonModifierKeys.isEmpty else {
                 holdStates[gesture] = HoldState()
                 continue
             }
@@ -251,15 +264,6 @@ struct TextShortcutGestureRecognizer {
         return activeModifierMask.subtracting(tapModifier)
     }
 
-    private func activeFunctionKeysExcludingTap(
-        _ tapKey: TextShortcutKey
-    ) -> Set<ShortcutFunctionKey> {
-        guard case let .function(tappedFunction) = tapKey else {
-            return activeFunctionKeys
-        }
-        return activeFunctionKeys.subtracting([tappedFunction])
-    }
-
     private mutating func consumeCurrentCycle() {
         cycleIsConsumed = true
         cycleIsInvalid = false
@@ -267,13 +271,14 @@ struct TextShortcutGestureRecognizer {
 
     private mutating func resetPhysicalCycle() {
         cycleKeys.removeAll()
+        alphanumericChord = nil
         cycleIsInvalid = false
         cycleIsConsumed = false
         holdStates.removeAll()
     }
 
     private mutating func resetAll() {
-        activeFunctionKeys.removeAll()
+        activeNonModifierKeys.removeAll()
         activeKeys.removeAll()
         resetPhysicalCycle()
         pendingClassic.removeAll()

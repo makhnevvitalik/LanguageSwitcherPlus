@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
 import AppKit
+import LanguageSwitcherMacOS
 
 protocol ClipboardOperationInteractionMonitoring: AnyObject {
     func start(onInteraction: @escaping () -> Void)

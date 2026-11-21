@@ -3,12 +3,14 @@
 
 import AppKit
 
-protocol FrontmostApplicationProviding: AnyObject {
+public protocol FrontmostApplicationProviding: AnyObject {
     var applicationID: String? { get }
 }
 
-final class FrontmostApplicationProvider: FrontmostApplicationProviding {
-    var applicationID: String? {
+public final class FrontmostApplicationProvider: FrontmostApplicationProviding {
+    public init() {}
+
+    public var applicationID: String? {
         guard let application = NSWorkspace.shared.frontmostApplication else {
             return nil
         }

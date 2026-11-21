@@ -3,6 +3,7 @@
 
 import Foundation
 import LanguageSwitcherApplication
+import LanguageSwitcherMacOS
 
 public final class SelectedTextClipboardEditor: SelectedTextReplacing {
     private final class Operation {

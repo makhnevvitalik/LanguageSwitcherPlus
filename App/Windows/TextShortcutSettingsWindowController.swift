@@ -233,13 +233,14 @@ enum TextActionShortcutFormatter {
 enum KeyChordFormatter {
     static func string(for chord: TextShortcutChord) -> String {
         modifierSymbols(for: chord.modifiers)
-            + (chord.functionKey.map { "F\($0.rawValue)" } ?? "")
+            + (chord.nonModifierKey.map { string(for: $0) } ?? "")
     }
 
     static func string(for key: TextShortcutKey) -> String {
         switch key {
         case let .modifier(modifier): modifierSymbols(for: modifier.mask)
         case let .function(functionKey): "F\(functionKey.rawValue)"
+        case let .alphanumeric(key): key.rawValue
         }
     }
 
