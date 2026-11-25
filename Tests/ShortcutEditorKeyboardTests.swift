@@ -459,22 +459,42 @@ extension TextShortcutSettingsWindowController {
         let firstEdit = firstRow.arrangedSubviews[2] as! NSButton
         let firstClear = firstRow.arrangedSubviews[3] as! NSButton
         let secondEdit = rows()[1].arrangedSubviews[2] as! NSButton
+        let secondClear = rows()[1].arrangedSubviews[3] as! NSButton
         let thirdEdit = rows()[2].arrangedSubviews[2] as! NSButton
         let content = window.contentView!
+        content.layoutSubtreeIfNeeded()
         try TextShortcutEditorSheetController.require(window.firstResponder === content, "The list must open without a focused action")
-        window.selectNextKeyView(content)
-        try TextShortcutEditorSheetController.require(window.firstResponder === firstEdit, "Tab must reach the first edit button")
-        window.selectNextKeyView(firstEdit)
-        try TextShortcutEditorSheetController.require(window.firstResponder === firstClear, "Tab must reach the corresponding Clear button")
-        window.selectNextKeyView(firstClear)
-        try TextShortcutEditorSheetController.require(window.firstResponder === secondEdit, "Tab must continue in row order")
-        window.selectNextKeyView(secondEdit)
-        try TextShortcutEditorSheetController.require(window.firstResponder === thirdEdit, "Tab must skip a disabled Clear button")
-        window.selectPreviousKeyView(thirdEdit)
-        try TextShortcutEditorSheetController.require(window.firstResponder === secondEdit, "Shift+Tab must follow the reverse row order")
+        try TextShortcutEditorSheetController.require(
+            content.nextKeyView === firstEdit && firstEdit.nextKeyView === firstClear
+                && firstClear.nextKeyView === secondEdit && secondEdit.nextKeyView === secondClear
+                && secondClear.nextKeyView === thirdEdit && !secondClear.isEnabled,
+            "The settings focus loop must follow row order and disable Clear for unassigned actions"
+        )
+        let canTabToButtons = NSApp.isFullKeyboardAccessEnabled
+        if canTabToButtons {
+            window.selectNextKeyView(content)
+            try TextShortcutEditorSheetController.require(window.firstResponder === firstEdit, "Tab must reach the first edit button")
+            window.selectNextKeyView(firstEdit)
+            try TextShortcutEditorSheetController.require(window.firstResponder === firstClear, "Tab must reach the corresponding Clear button")
+            window.selectNextKeyView(firstClear)
+            try TextShortcutEditorSheetController.require(window.firstResponder === secondEdit, "Tab must continue in row order")
+            window.selectNextKeyView(secondEdit)
+            try TextShortcutEditorSheetController.require(window.firstResponder === thirdEdit, "Tab must skip a disabled Clear button")
+            window.selectPreviousKeyView(thirdEdit)
+            try TextShortcutEditorSheetController.require(window.firstResponder === secondEdit, "Shift+Tab must follow the reverse row order")
+        } else {
+            print("macOS keyboard navigation is off; verified the configured focus loop and disabled controls")
+        }
         controller.clearShortcut(firstClear)
-        try TextShortcutEditorSheetController.require(window.firstResponder === rows()[0].arrangedSubviews[2],
-                                                       "Clearing a shortcut must return keyboard focus to its Set button")
+        let refreshedRow = rows()[0]
+        let firstSet = refreshedRow.arrangedSubviews[2] as! NSButton
+        let disabledClear = refreshedRow.arrangedSubviews[3] as! NSButton
+        try TextShortcutEditorSheetController.require(!disabledClear.isEnabled,
+                                                       "Clearing a shortcut must disable Clear")
+        if canTabToButtons {
+            try TextShortcutEditorSheetController.require(window.firstResponder === firstSet,
+                                                           "Clearing a shortcut must return keyboard focus to its Set button")
+        }
         var returnTargets: [String] = []
         controller.showWindow(returningTo: { returnTargets.append("first") })
         controller.showWindow(returningTo: { returnTargets.append("latest") })
@@ -483,7 +503,7 @@ extension TextShortcutSettingsWindowController {
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         try TextShortcutEditorSheetController.require(returnTargets == ["latest"],
                                                        "Closing a reused shortcut window must restore the latest source")
-        print("PASS: shortcut settings focus order, disabled controls and focus after clearing")
+        print("PASS: shortcut settings focus loop, disabled controls and return to source")
     }
 }
 
