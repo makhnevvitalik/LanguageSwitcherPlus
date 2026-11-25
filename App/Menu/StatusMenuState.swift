@@ -16,7 +16,7 @@ enum KeyboardMonitoringWarning: Equatable {
         case .inputMonitoringPaused:
             localized("Input Monitoring is paused")
         case .textShortcutsNeedAccessibility:
-            localized("Letter and digit shortcuts need Accessibility")
+            localized("Letter and digit shortcuts need permission")
         case .textShortcutInterceptionUnavailable:
             localized("Letter and digit shortcuts are paused")
         }
@@ -25,7 +25,7 @@ enum KeyboardMonitoringWarning: Equatable {
     @MainActor var buttonTitle: String {
         switch self {
         case .textShortcutsNeedAccessibility:
-            localized("Open Accessibility Settings")
+            localized("Open Accessibility")
         case .inputMonitoringPaused, .textShortcutInterceptionUnavailable:
             localized("Resume…")
         }

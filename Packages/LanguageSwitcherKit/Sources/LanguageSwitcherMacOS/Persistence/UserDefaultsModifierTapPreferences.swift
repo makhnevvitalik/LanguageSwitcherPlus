@@ -5,7 +5,7 @@ import Foundation
 
 public final class UserDefaultsModifierTapPreferences {
     public static let durationOptions = (1...10).map { Double($0) / 10 }
-    public static let defaultDuration: TimeInterval = 0.2
+    public static let defaultDuration: TimeInterval = 0.3
 
     private enum Keys {
         static let maximumDuration = "keyboardSwitching.maximumTapDuration"

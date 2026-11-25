@@ -13,12 +13,19 @@ import ServiceManagement
 
 @MainActor
 final class UpdateAvailability: ObservableObject {
+    enum State {
+        case idle, checking, finished(ReleaseUpdateResult)
+    }
+
     struct Release: Equatable {
         let tag: String
         let url: URL
     }
 
     @Published private(set) var release: Release?
+    @Published private(set) var state: State = .idle
+
+    func beginCheck() { state = .checking }
 
     func apply(_ result: ReleaseUpdateResult) -> Bool {
         let nextRelease: Release?
@@ -28,11 +35,12 @@ final class UpdateAvailability: ObservableObject {
         case .upToDate:
             nextRelease = nil
         case .failure:
-            return false
+            nextRelease = release
         }
-        guard release != nextRelease else { return false }
-        release = nextRelease
-        return true
+        let releaseChanged = release != nextRelease
+        if releaseChanged { release = nextRelease }
+        state = .finished(result)
+        return releaseChanged
     }
 }
 
@@ -105,6 +113,7 @@ final class ApplicationCoordinator: NSObject {
         validateFunctionGlobeSetting()
         startKeyboardMonitoringIfNeeded()
         hasStarted = true
+        updateChecker.onCheckStarted = { [weak self] in self?.updateAvailability.beginCheck() }
         updateChecker.startAutomaticChecks { [weak self] in self?.presentUpdateResult($0) }
         guard !inBackground else { return }
 
@@ -138,11 +147,8 @@ final class ApplicationCoordinator: NSObject {
         appController.stopKeyboardMonitoring()
     }
 
-    private func checkForUpdates(completion: @escaping (ReleaseUpdateResult) -> Void) {
-        updateChecker.check(joinInProgress: true) { [weak self] result in
-            self?.presentUpdateResult(result)
-            completion(result)
-        }
+    private func checkForUpdates() {
+        updateChecker.check { [weak self] in self?.presentUpdateResult($0) }
     }
 
     private func presentUpdateResult(_ result: ReleaseUpdateResult) {
@@ -161,8 +167,8 @@ final class ApplicationCoordinator: NSObject {
             validateShortcut: { [weak appController] shortcut, action in
                 appController?.validateTextShortcut(shortcut, for: action) ?? .invalid
             },
-            setShortcut: { [weak self] shortcut, action in
-                self?.setTextShortcut(shortcut, for: action) ?? .invalid
+            setShortcut: { [weak self] shortcut, action, reviewedConflict in
+                self?.setTextShortcut(shortcut, for: action, reviewedConflict: reviewedConflict) ?? .invalid
             },
             onRecordingChanged: { [weak self] isRecording in
                 guard let self else { return }
@@ -190,8 +196,10 @@ final class ApplicationCoordinator: NSObject {
             setScope: { [weak appController] scope in
                 appController?.textConversionScope = scope
             },
-            configureShortcuts: { [weak shortcutWindow] in
-                shortcutWindow?.showWindow()
+            configureShortcuts: { [weak self, weak shortcutWindow] trigger in
+                guard let shortcutWindow else { return }
+                let returnToSource = self?.statusMenuController?.leaveForShortcutSettings(from: trigger)
+                shortcutWindow.showWindow(returningTo: returnToSource)
             },
             currentMultiPressInterval: { [weak appController] in
                 appController?.maximumTextShortcutMultiPressInterval
@@ -262,8 +270,8 @@ final class ApplicationCoordinator: NSObject {
             keyboardSwitchingController: keyboardSwitching,
             aboutWindowController: AboutWindowController(
                 identity: identity, updateAvailability: updateAvailability
-            ) { [weak self] completion in
-                self?.checkForUpdates(completion: completion)
+            ) { [weak self] in
+                self?.checkForUpdates()
             },
             updateAvailability: updateAvailability,
             currentState: { [weak self] in
@@ -286,7 +294,8 @@ final class ApplicationCoordinator: NSObject {
 
     private func setTextShortcut(
         _ shortcut: TextActionShortcut?,
-        for action: TextAction
+        for action: TextAction,
+        reviewedConflict: TextShortcutConflict?
     ) -> ConfigureTextActionShortcutResult {
         let setupWasPending = isTextShortcutPermissionSetupPending
         if shortcut != nil,
@@ -297,7 +306,7 @@ final class ApplicationCoordinator: NSObject {
             isTextShortcutPermissionSetupPending = true
         }
 
-        let result = appController.setTextShortcut(shortcut, for: action)
+        let result = appController.setTextShortcut(shortcut, for: action, reviewedConflict: reviewedConflict)
         guard result == .updated else {
             isTextShortcutPermissionSetupPending = setupWasPending
             return result

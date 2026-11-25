@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
 import Carbon
+import LanguageSwitcherApplication
 import LanguageSwitcherDomain
-
-public enum TextShortcutConflict: Equatable {
-    case system
-    case documentedSystemCommand(String)
-    case commonCommand(String)
-}
 
 public enum TextShortcutConflictDetector {
     private static let typeToSiri = TextActionShortcut.repeatTwice(
@@ -27,7 +22,15 @@ public enum TextShortcutConflictDetector {
             for: shortcut,
             entries: status == noErr ? entries ?? [] : [],
             layoutData: layout?.property(kTISPropertyUnicodeKeyLayoutData) as? Data,
-            fallbackLayoutData: fallback?.property(kTISPropertyUnicodeKeyLayoutData) as? Data
+            fallbackLayoutData: fallback?.property(kTISPropertyUnicodeKeyLayoutData) as? Data,
+            layoutName: layout?.stringProperty(kTISPropertyLocalizedName),
+            enabledTypingLayouts: {
+                TISInputSourceCatalog.selectableInputSources().compactMap { source in
+                    guard let name = source.stringProperty(kTISPropertyLocalizedName),
+                          let data = source.property(kTISPropertyUnicodeKeyLayoutData) as? Data else { return nil }
+                    return (name, data)
+                }
+            }
         )
     }
 
@@ -35,7 +38,9 @@ public enum TextShortcutConflictDetector {
         for shortcut: TextActionShortcut,
         entries: [[String: Any]],
         layoutData: Data? = nil,
-        fallbackLayoutData: Data? = nil
+        fallbackLayoutData: Data? = nil,
+        layoutName: String? = nil,
+        enabledTypingLayouts: () -> [(name: String, data: Data)] = { [] }
     ) -> TextShortcutConflict? {
         if shortcut == typeToSiri {
             return .documentedSystemCommand("Type to Siri")
@@ -65,8 +70,35 @@ public enum TextShortcutConflictDetector {
                 return .documentedSystemCommand(command)
             }
         }
-        return keys.lazy.compactMap { applicationCommands[$0.modifiers]?[$0.symbol] }
-            .first.map(TextShortcutConflict.commonCommand)
+        if let command = keys.lazy.compactMap({ applicationCommands[$0.modifiers]?[$0.symbol] }).first {
+            return .commonCommand(command)
+        }
+        guard chord.modifiers == .option || chord.modifiers == [.option, .shift],
+              let keyCode = chord.alphanumericKey?.keyCode else { return nil }
+        let modifiers = UInt32(modifierMask)
+        if let layoutData, let layoutName,
+           let warning = typingConflict(layoutName: layoutName, layoutData: layoutData,
+                                        keyCode: keyCode, modifiers: modifiers) {
+            return warning
+        }
+        return enabledTypingLayouts().lazy.compactMap { layout in
+            typingConflict(layoutName: layout.name, layoutData: layout.data, keyCode: keyCode, modifiers: modifiers)
+        }.first
+    }
+
+    private static func typingConflict(
+        layoutName: String, layoutData: Data, keyCode: UInt16, modifiers: UInt32
+    ) -> TextShortcutConflict? {
+        guard let translation = TISKeyboardLayoutProvider.translate(
+            layoutData: layoutData, keyCode: keyCode, modifiers: modifiers
+        ) else { return nil }
+        if translation.isDeadKey {
+            return .typing(layout: layoutName, effect: .startsComposition)
+        }
+        guard translation.text.unicodeScalars.contains(where: {
+            !CharacterSet.controlCharacters.contains($0)
+        }) else { return nil }
+        return .typing(layout: layoutName, effect: .insertsText(translation.text))
     }
 
     private static func commandKeys(

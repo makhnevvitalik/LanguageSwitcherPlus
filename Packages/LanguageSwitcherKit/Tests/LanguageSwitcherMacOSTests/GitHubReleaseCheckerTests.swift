@@ -90,10 +90,13 @@ final class GitHubReleaseCheckerTests: XCTestCase {
         let checker = makeChecker(transport)
         var startupResult: ReleaseUpdateResult?
         var manualResult: ReleaseUpdateResult?
+        var starts = 0
+        checker.onCheckStarted = { starts += 1 }
         checker.check { startupResult = $0 }
         checker.check(joinInProgress: true) { manualResult = $0 }
 
         XCTAssertEqual(transport.requests.count, 1)
+        XCTAssertEqual(starts, 1)
         transport.completions[0](releaseData("v1.1.0"), response(), nil)
         await flushMainQueue()
 

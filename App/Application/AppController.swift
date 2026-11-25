@@ -50,7 +50,7 @@ final class AppController {
         functionGlobeBehavior: LanguageSwitcherMacOS.FunctionGlobeSystemBehaviorController,
         trackedTextBuffer: TrackedTextBuffer,
         inputContextTracker: InputContextTracker,
-        inputMonitoringPermission: InputMonitoringPermissionController = InputMonitoringPermissionController()
+        inputMonitoringPermission: InputMonitoringPermissionController
     ) {
         self.inputSourceRepository = inputSourceRepository
         self.inputSourceSelectionStore = inputSourceSelectionStore
@@ -231,12 +231,14 @@ final class AppController {
     @discardableResult
     func setTextShortcut(
         _ shortcut: TextActionShortcut?,
-        for action: TextAction
+        for action: TextAction,
+        reviewedConflict: TextShortcutConflict?
     ) -> ConfigureTextActionShortcutResult {
         let result = configureTextShortcut.setShortcut(
             shortcut,
             for: action,
-            reservedShortcuts: reservedTextShortcuts
+            reservedShortcuts: reservedTextShortcuts,
+            reviewedConflict: reviewedConflict
         )
         if result == .updated {
             configureKeyboardMonitor()

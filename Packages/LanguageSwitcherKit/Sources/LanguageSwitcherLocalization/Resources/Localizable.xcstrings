@@ -51,12 +51,12 @@
         }
       }
     },
-    "%@ is available.": {
+    "%@ is available": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Доступна версия %@."
+            "value": "Доступна версия %@"
           }
         }
       }
@@ -901,12 +901,12 @@
         }
       }
     },
-    "Letter and digit shortcuts need Accessibility": {
+    "Letter and digit shortcuts need permission": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Для сочетаний с буквами и цифрами нужен «Универсальный доступ»"
+            "value": "Сочетания с буквами и цифрами требуют разрешения"
           }
         }
       }
@@ -1391,12 +1391,22 @@
         }
       }
     },
+    "Checking GitHub for updates…": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверяем обновления на GitHub…"
+          }
+        }
+      }
+    },
     "Checking…": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Проверка…"
+            "value": "Проверяем…"
           }
         }
       }
@@ -1417,16 +1427,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Задайте допустимое сочетание."
-          }
-        }
-      }
-    },
-    "Choose whether to press a shortcut once, repeat the whole shortcut, or hold modifiers and tap the final key twice.": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Выберите: нажать сочетание один раз, повторить его целиком или удерживать модификаторы и дважды нажать последнюю клавишу."
           }
         }
       }
@@ -1661,6 +1661,26 @@
         }
       }
     },
+    "In %1$@, it types “%2$@”.": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "В раскладке «%1$@» вводит «%2$@»."
+          }
+        }
+      }
+    },
+    "In %@, it starts composing a character.": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "В раскладке «%@» начинает ввод составного символа."
+          }
+        }
+      }
+    },
     "Input Monitoring is paused": {
       "localizations": {
         "ru": {
@@ -1861,6 +1881,16 @@
         }
       }
     },
+    "Open Accessibility": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть «Универсальный доступ»"
+          }
+        }
+      }
+    },
     "Open Accessibility Settings": {
       "localizations": {
         "ru": {
@@ -1931,12 +1961,12 @@
         }
       }
     },
-    "Modifiers, F1–F20, letters and digits": {
+    "F1–F20, modifiers, or a letter or digit with Control, Option, or Command.": {
       "localizations": {
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Модификаторы, F1–F20, буквы и цифры"
+            "value": "F1–F20, модификаторы, буквы и цифры с Control, Option или Command."
           }
         }
       }
@@ -2341,6 +2371,16 @@
         }
       }
     },
+    "This shortcut intercepts typing": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сочетание перехватывает ввод текста"
+          }
+        }
+      }
+    },
     "This shortcut is already used by macOS": {
       "localizations": {
         "ru": {
@@ -2451,16 +2491,6 @@
         }
       }
     },
-    "Try Again": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Повторить"
-          }
-        }
-      }
-    },
     "Twice": {
       "localizations": {
         "ru": {
@@ -2537,16 +2567,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Добавьте Control, Option или Command к букве или цифре."
-          }
-        }
-      }
-    },
-    "Use modifiers, F1–F20, or a letter or digit with modifiers.": {
-      "localizations": {
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Используйте модификаторы, F1–F20 или букву либо цифру с модификаторами."
           }
         }
       }

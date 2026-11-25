@@ -9,45 +9,47 @@
 //
 
 import AppKit
+import Combine
 import Foundation
 import LanguageSwitcherEdition
 import LanguageSwitcherMacOS
 
 @MainActor
 final class AboutWindowController: NSObject, NSWindowDelegate {
-    private enum ManualCheckResult {
-        case upToDate
-        case failure(ReleaseUpdateFailure)
-    }
-
     private let identity: AppIdentity
     private let updateAvailability: UpdateAvailability
+    private var updateAvailabilityObservation: AnyCancellable?
     private var aboutWindow: NSWindow?
+    private var returnToSource: (() -> Void)?
     private var licensesWindowController: LicensesAcknowledgementsWindowController?
     private var updateButton: NSButton?
+    private var releaseButton: NSButton?
     private var updateProgressIndicator: NSProgressIndicator?
     private var updateStatusLabel: NSTextField?
     private weak var contentStack: NSStackView?
-    private let requestUpdateCheck: (@escaping (ReleaseUpdateResult) -> Void) -> Void
-    private var updateRequestID: UUID?
-    private var manualCheckResult: ManualCheckResult?
+    private let requestUpdateCheck: () -> Void
 
     init(
         identity: AppIdentity,
         updateAvailability: UpdateAvailability,
-        requestUpdateCheck: @escaping (@escaping (ReleaseUpdateResult) -> Void) -> Void
+        requestUpdateCheck: @escaping () -> Void
     ) {
         self.identity = identity
         self.updateAvailability = updateAvailability
         self.requestUpdateCheck = requestUpdateCheck
         super.init()
+        updateAvailabilityObservation = updateAvailability.$state.dropFirst().sink { [weak self] state in
+            guard let self, self.aboutWindow != nil else { return }
+            self.refreshUpdateControls(state: state)
+        }
     }
 
-    func showWindow() {
+    func showWindow(returningTo source: (() -> Void)? = nil) {
         if aboutWindow == nil {
             aboutWindow = makeAboutWindow()
         }
-        refreshUpdateControls()
+        if let source { returnToSource = source }
+        refreshUpdateControls(state: updateAvailability.state)
 
         NSApp.activate(ignoringOtherApps: true)
         if let aboutWindow {
@@ -56,16 +58,11 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        updateRequestID = nil
-        manualCheckResult = nil
-        updateProgressIndicator?.stopAnimation(nil)
-        updateProgressIndicator?.isHidden = true
-    }
-
-    func refreshUpdateAvailability() {
-        manualCheckResult = nil
-        if aboutWindow?.isVisible == true {
-            refreshUpdateControls()
+        guard let returnToSource else { return }
+        self.returnToSource = nil
+        DispatchQueue.main.async { [weak self] in
+            guard self?.aboutWindow?.isVisible == false else { return }
+            returnToSource()
         }
     }
 
@@ -77,13 +74,15 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     private func makeAboutWindow() -> NSWindow {
         let updateButton = NSButton(title: localized("Check for Updates"), target: self,
                                     action: #selector(updateButtonPressed))
+        let releaseButton = NSButton(title: "", target: self, action: #selector(openRelease))
         let licensesButton = NSButton(title: localized("Licenses…"), target: self, action: #selector(showLicenses))
         let content = AboutContent(name: identity.productName, icon: NSApp.applicationIconImage,
             tagline: localized("Switch keyboard layouts and fix text typed in the wrong layout or case."),
-            copyright: copyrightText, updateButton: updateButton,
+            copyright: copyrightText, updateButton: updateButton, releaseButton: releaseButton,
             gitHubButton: NSButton(title: "GitHub ↗", target: self, action: #selector(openGitHub)),
             licensesButton: licensesButton, statusIdentifier: "AboutUpdateStatus")
         self.updateButton = updateButton
+        self.releaseButton = releaseButton
         updateProgressIndicator = content.progressIndicator
         updateStatusLabel = content.statusLabel
         contentStack = content.contentStack
@@ -106,6 +105,7 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     @objc private func openGitHub() {
+        returnToSource = nil
         aboutWindow?.close()
         NSWorkspace.shared.open(identity.repositoryURL)
     }
@@ -118,65 +118,44 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     @objc private func updateButtonPressed() {
-        if let release = updateAvailability.release {
-            NSWorkspace.shared.open(release.url)
-            return
-        }
-        checkForUpdates()
+        requestUpdateCheck()
     }
 
-    private func checkForUpdates() {
-        guard updateRequestID == nil else { return }
-        let requestID = UUID()
-        updateRequestID = requestID
-        manualCheckResult = nil
-        refreshUpdateControls()
-        updateProgressIndicator?.isHidden = false
-        updateProgressIndicator?.startAnimation(nil)
-        requestUpdateCheck { [weak self] result in
-            guard let self, self.updateRequestID == requestID else { return }
-            self.updateRequestID = nil
-            self.finishUpdateCheck(result)
-        }
+    @objc private func openRelease() {
+        guard let release = updateAvailability.release else { return }
+        NSWorkspace.shared.open(release.url)
     }
 
-    private func finishUpdateCheck(_ result: ReleaseUpdateResult) {
-        updateProgressIndicator?.stopAnimation(nil)
-        updateProgressIndicator?.isHidden = true
+    private func refreshUpdateControls(state: UpdateAvailability.State) {
+        let checking: Bool
+        if case .checking = state { checking = true } else { checking = false }
+        let release = updateAvailability.release
+        updateButton?.title = localized(checking ? "Checking…" : "Check for Updates")
+        updateButton?.isEnabled = !checking
+        let releaseTitle = release.map { localizedFormat("%@ is available", $0.tag) }
+        releaseButton?.title = releaseTitle.map { $0 + " ↗" } ?? ""
+        releaseButton?.toolTip = releaseTitle
+        releaseButton?.setAccessibilityLabel(releaseTitle)
+        releaseButton?.setAccessibilityHelp(localized("View Release"))
+        releaseButton?.isHidden = release == nil
 
-        switch result {
-        case .upToDate:
-            manualCheckResult = .upToDate
-        case .updateAvailable:
-            manualCheckResult = nil
-        case let .failure(failure):
-            manualCheckResult = .failure(failure)
-        }
-        refreshUpdateControls()
-    }
-
-    private func refreshUpdateControls() {
-        if let release = updateAvailability.release {
-            updateButton?.title = localized("View Release")
-            updateStatusLabel?.textColor = .labelColor
-            setUpdateStatusText(localizedFormat("%@ is available.", release.tag))
-            return
-        }
-
-        switch manualCheckResult {
-        case .upToDate:
-            updateButton?.title = localized("Check for Updates")
+        let status: String
+        switch state {
+        case .finished(.upToDate):
             updateStatusLabel?.textColor = AppStyle.Color.success
-            setUpdateStatusText(localized("You’re up to date."))
-        case let .failure(failure):
-            updateButton?.title = localized("Try Again")
+            status = localized("You’re up to date.")
+        case let .finished(.failure(failure)):
             updateStatusLabel?.textColor = .systemRed
-            setUpdateStatusText(updateFailureText(failure))
-        case nil:
-            updateButton?.title = updateRequestID == nil ? localized("Check for Updates") : localized("Checking…")
+            status = updateFailureText(failure)
+        case .idle, .checking, .finished(.updateAvailable):
             updateStatusLabel?.textColor = .secondaryLabelColor
-            setUpdateStatusText("")
+            status = checking && release == nil ? localized("Checking GitHub for updates…") : ""
         }
+        updateStatusLabel?.isHidden = release != nil && status.isEmpty
+        updateProgressIndicator?.isHidden = !checking
+        if checking { updateProgressIndicator?.startAnimation(nil) }
+        else { updateProgressIndicator?.stopAnimation(nil) }
+        setUpdateStatusText(status)
     }
 
     private func updateFailureText(_ failure: ReleaseUpdateFailure) -> String {

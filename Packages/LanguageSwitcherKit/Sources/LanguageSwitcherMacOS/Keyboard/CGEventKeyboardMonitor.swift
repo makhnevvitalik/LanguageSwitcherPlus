@@ -265,22 +265,24 @@ public final class CGEventKeyboardMonitor {
         let keyInput = TextShortcutKeyInput(event: input)
         var textInput = makeTextShortcutInput(type: type, event: input, keyInput: keyInput)
         var didIntercept = false
-        switch textInput {
-        case let .keyDown(key, _, _, _) where key.isAlphanumeric:
-            // Repeats and key-up belong to whoever received the initial key-down.
-            if interceptedKeys.contains(key) { return true }
-            if let inputEvent = textInput, !keyInput.rejectsFn,
-               textInputContextPolicy.shouldPreserveContext(for: inputEvent), interceptionAllowed() {
-                interceptedKeys.insert(key)
-                didIntercept = true
-            } else {
-                textInput = nil
+        if let inputEvent = textInput {
+            switch inputEvent {
+            case let .keyDown(key, _, _, _) where key.isAlphanumeric:
+                // Repeats and key-up belong to whoever received the initial key-down.
+                if interceptedKeys.contains(key) { return true }
+                if !keyInput.rejectsFn,
+                   textInputContextPolicy.shouldPreserveContext(for: inputEvent), interceptionAllowed() {
+                    interceptedKeys.insert(key)
+                    didIntercept = true
+                } else {
+                    textInput = nil
+                }
+            case let .keyUp(key, _, _) where key.isAlphanumeric:
+                didIntercept = interceptedKeys.remove(key) != nil
+                if !didIntercept { textInput = nil }
+            default:
+                break
             }
-        case let .keyUp(key, _, _) where key.isAlphanumeric:
-            didIntercept = interceptedKeys.remove(key) != nil
-            if !didIntercept { textInput = nil }
-        default:
-            break
         }
         let shouldPreserveTextContext = didIntercept || textInput.map(
             textInputContextPolicy.shouldPreserveContext

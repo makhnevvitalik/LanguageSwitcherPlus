@@ -16,6 +16,15 @@ import AppKit
 //   Системные диалоги и внутреннюю типографику нативных виджетов оставляем системе.
 @MainActor
 enum AppStyle {
+    enum FeedbackTransition {
+        static let duration: TimeInterval = 0.16
+
+        static func progress(_ fraction: CGFloat) -> CGFloat {
+            let remaining = 1 - fraction
+            return 1 - remaining * remaining * remaining
+        }
+    }
+
     enum Font {
         // Основной текст: подписи строк главного меню, описание, версия, автор и лицензия.
         // Regular 13. Короткая подпись поля в редакторе использует fieldLabel.
@@ -87,6 +96,7 @@ enum AppStyle {
         static let cardCornerRadius: CGFloat = 11
         static let sectionHeaderHeight: CGFloat = 30
         static let detailedRowHeight: CGFloat = 46
+        static let shortcutEditorWidth: CGFloat = 540
         static let rowHeight: CGFloat = 40
         static let rowItemSpacing: CGFloat = 10
         static let headerIconFrame: CGFloat = 40
@@ -122,6 +132,17 @@ enum AppStyle {
             return NSColor(calibratedRed: 0.10, green: 0.43, blue: 0.23, alpha: 1)
         }
         static let cardBackground = NSColor.controlBackgroundColor
+        static let stateDetailText = NSColor(name: "StateDetailText") { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let contrast = appearance.bestMatch(from: [
+                .aqua, .darkAqua, .accessibilityHighContrastAqua, .accessibilityHighContrastDarkAqua
+            ])
+            if contrast == .accessibilityHighContrastAqua || contrast == .accessibilityHighContrastDarkAqua {
+                return dark ? .white : .black
+            }
+            let gray: CGFloat = dark ? 0.72 : 0.38
+            return NSColor(srgbRed: gray, green: gray, blue: gray, alpha: 1)
+        }
         static let inactiveControl = NSColor.tertiaryLabelColor.withAlphaComponent(0.45)
 
         static func compactSelectionBackground(accent: NSColor = .controlAccentColor) -> NSColor {
@@ -150,6 +171,13 @@ enum AppStyle {
 }
 
 extension AppStyle {
+    static func configureCompactButton(_ button: NSButton) {
+        button.controlSize = .small
+        button.bezelStyle = .rounded
+        button.isBordered = true
+        button.font = Font.controlLabel
+    }
+
     static func showWithoutInitialControlFocus(_ window: NSWindow) {
         let wasVisible = window.isVisible
         window.makeKeyAndOrderFront(nil)
@@ -183,18 +211,31 @@ extension AppStyle {
     }
 
     final class SettingsMenuButton: NSPopUpButton {
+        private(set) var isTrackingMouseMenu = false
+
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
         override func mouseDown(with event: NSEvent) {
             let previousRing = focusRingType
+            isTrackingMouseMenu = true
+            defer {
+                isTrackingMouseMenu = false
+                focusRingType = previousRing
+            }
             focusRingType = .none
             window?.makeFirstResponder(self)
             super.mouseDown(with: event)
             if let window, window.firstResponder === self {
                 window.makeFirstResponder(nil)
             }
-            focusRingType = previousRing
         }
+    }
+
+    static func restorableControl(in window: NSWindow) -> NSControl? {
+        let responder = window.firstResponder as? NSControl
+        // The gear has temporary focus while tracking a mouse-opened menu.
+        if (responder as? SettingsMenuButton)?.isTrackingMouseMenu == true { return nil }
+        return responder
     }
 
     static func makeAboutIdentityView(name: String, availableWidth: CGFloat) -> NSStackView {
@@ -230,6 +271,166 @@ extension AppStyle {
         if window.frame.size != frame.size {
             window.setFrame(NSRect(x: window.frame.minX, y: window.frame.maxY - frame.height,
                                    width: frame.width, height: frame.height), display: window.isVisible)
+        }
+    }
+}
+
+/// The feedback and the window share one transition so the capture field stays anchored.
+@MainActor
+final class ShortcutFeedbackLayout {
+    enum Style { case error, warning, information }
+
+    let slot = NSView()
+    let banner = NSBox()
+    let label = NSTextField(wrappingLabelWithString: "")
+
+    private let icon = NSImageView()
+    private let bannerTopInset: CGFloat = 8
+    private lazy var slotHeight = slot.heightAnchor.constraint(equalToConstant: 0)
+    private lazy var bannerHeight = banner.heightAnchor.constraint(equalToConstant: 0)
+    private var targetHeight: CGFloat = 0
+    private var transition: Timer?
+
+    init() {
+        slot.wantsLayer = true
+        slot.layer?.masksToBounds = true
+        banner.boxType = .custom
+        banner.titlePosition = .noTitle
+        banner.cornerRadius = 9
+        banner.wantsLayer = true
+        banner.layer?.masksToBounds = true
+        banner.contentViewMargins = .zero
+        banner.isHidden = true
+        banner.alphaValue = 0
+        banner.translatesAutoresizingMaskIntoConstraints = false
+        slot.addSubview(banner)
+
+        let content = banner.contentView!
+        icon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+        icon.setAccessibilityElement(false)
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        label.maximumNumberOfLines = 0
+        label.lineBreakMode = .byWordWrapping
+        label.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(icon)
+        content.addSubview(label)
+        NSLayoutConstraint.activate([
+            slotHeight, bannerHeight,
+            banner.leadingAnchor.constraint(equalTo: slot.leadingAnchor),
+            banner.trailingAnchor.constraint(equalTo: slot.trailingAnchor),
+            banner.topAnchor.constraint(equalTo: slot.topAnchor, constant: bannerTopInset),
+            icon.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 12),
+            icon.centerYAnchor.constraint(equalTo: content.centerYAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 16),
+            icon.heightAnchor.constraint(equalToConstant: 16),
+            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 8),
+            label.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -12),
+            label.centerYAnchor.constraint(equalTo: content.centerYAnchor)
+        ])
+    }
+
+    func show(_ title: String, detail: String?, style: Style) {
+        let (color, symbol): (NSColor, String) = switch style {
+        case .error: (.systemRed, "exclamationmark.circle.fill")
+        case .warning: (.systemOrange, "exclamationmark.triangle.fill")
+        case .information: (.systemBlue, "info.circle.fill")
+        }
+        banner.fillColor = color.withAlphaComponent(0.10)
+        banner.borderColor = color.withAlphaComponent(0.35)
+        banner.borderWidth = style == .information ? 1 : 0
+        icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        icon.contentTintColor = color
+        let message = NSMutableAttributedString(string: title, attributes: [
+            .font: detail == nil ? AppStyle.Font.body : AppStyle.Font.sectionTitle,
+            .foregroundColor: NSColor.labelColor
+        ])
+        if let detail {
+            message.append(NSAttributedString(string: "\n" + detail, attributes: [
+                .font: AppStyle.Font.supportingText,
+                .foregroundColor: AppStyle.Color.stateDetailText
+            ]))
+        }
+        label.attributedStringValue = message
+        label.toolTip = message.string
+        slot.window?.contentView?.layoutSubtreeIfNeeded()
+        // NSTextField uses a two-point text inset on each side.
+        let bounds = message.boundingRect(
+            with: NSSize(width: max(1, label.bounds.width - 4), height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading]
+        )
+        banner.isHidden = false
+        resize(to: ceil(bounds.height) + 16 + bannerTopInset)
+    }
+
+    func hide() {
+        resize(to: 0)
+    }
+
+    private func resize(to height: CGFloat) {
+        guard let window = slot.window, targetHeight != height else { return }
+        targetHeight = height
+        transition?.invalidate()
+        transition = nil
+        let startHeight = slotHeight.constant
+        let startOpacity = banner.alphaValue
+        let endOpacity: CGFloat = height > 0 ? 1 : 0
+        let compactWindowHeight = window.frame.height - startHeight
+
+        let update: (CGFloat) -> Void = { [weak self, weak window] progress in
+            guard let self, let window else { return }
+            banner.alphaValue = startOpacity + (endOpacity - startOpacity) * progress
+            slotHeight.constant = (startHeight + (height - startHeight) * progress).rounded()
+            bannerHeight.constant = max(0, slotHeight.constant - bannerTopInset)
+            resizeWindow(window, height: compactWindowHeight + slotHeight.constant)
+            window.contentView?.layoutSubtreeIfNeeded()
+            if progress == 1 && height == 0 {
+                banner.isHidden = true
+                label.stringValue = ""
+                label.toolTip = nil
+            }
+            window.displayIfNeeded()
+        }
+
+        guard window.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            update(1)
+            return
+        }
+        let start = ProcessInfo.processInfo.systemUptime
+        let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self, weak window] timer in
+            MainActor.assumeIsolated {
+                guard let self, let window else { timer.invalidate(); return }
+                let fraction = window.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+                    ? min((ProcessInfo.processInfo.systemUptime - start) / AppStyle.FeedbackTransition.duration, 1)
+                    : 1
+                update(AppStyle.FeedbackTransition.progress(fraction))
+                if fraction == 1 {
+                    timer.invalidate()
+                    self.transition = nil
+                }
+            }
+        }
+        transition = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func resizeWindow(_ window: NSWindow, height: CGFloat) {
+        var frame = window.frame
+        frame.size.height = height
+        frame.origin.y = window.frame.maxY - height
+        let visibleFrame = window.isVisible ? (window.screen ?? NSScreen.main)?.visibleFrame : nil
+        if let visibleFrame, window.sheetParent == nil {
+            frame.origin.y = max(frame.minY, visibleFrame.minY)
+        }
+        window.setFrame(frame, display: false)
+
+        // AppKit positions a sheet relative to its parent, so move the parent
+        // only if the actual sheet frame would leave its actions below the screen.
+        guard let visibleFrame, let parent = window.sheetParent else { return }
+        let overflow = visibleFrame.minY - window.frame.minY
+        let roomAboveParent = visibleFrame.maxY - parent.frame.maxY
+        let shift = min(overflow, roomAboveParent)
+        if shift > 0 {
+            parent.setFrameOrigin(NSPoint(x: parent.frame.minX, y: parent.frame.minY + shift))
         }
     }
 }

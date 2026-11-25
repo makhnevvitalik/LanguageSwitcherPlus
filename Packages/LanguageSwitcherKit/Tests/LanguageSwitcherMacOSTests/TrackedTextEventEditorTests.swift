@@ -38,9 +38,45 @@ final class TrackedTextEventEditorTests: XCTestCase {
         XCTAssertEqual(fixture.eventReplacer.calls, [.init(deleteCount: 3, text: "NEW")])
     }
 
-    func testReplacementCommitsWhenCombiningMarkWasTypedInSeparateEvent() {
-        let fixture = Fixture(text: "e")
-        fixture.buffer.recordPrintableText("\u{301}x", applicationID: "editor")
+    func testReplacementDoesNotSendDeletionForMultiScalarGraphemes() {
+        for (initial, finalInput) in [
+            ("e", "\u{301}x"), ("xक्‍ष", "a"), ("Word👩‍💻", "hello"), ("hello\r", "\n")
+        ] {
+            let fixture = Fixture(text: initial)
+            fixture.buffer.recordPrintableText(finalInput, applicationID: "editor")
+            var result: TextReplacementResult?
+
+            XCTAssertTrue(fixture.editor.replaceTrackedText(
+                scope: .lastWord,
+                transform: { TextTransformation(text: $0.uppercased()) },
+                completion: { result = $0 }
+            ))
+
+            XCTAssertEqual(result, .contextChanged)
+            XCTAssertTrue(fixture.eventReplacer.calls.isEmpty)
+            XCTAssertEqual(fixture.buffer.snapshot(for: "editor")?.text, initial + finalInput)
+        }
+    }
+
+    func testReplacementPreservesUnchangedMultiScalarPrefix() {
+        for scope: TextConversionScope in [.typedText, .lastWord] {
+            let fixture = Fixture(text: "👩‍💻hello")
+            var result: TextReplacementResult?
+
+            XCTAssertTrue(fixture.editor.replaceTrackedText(
+                scope: scope,
+                transform: { TextTransformation(text: $0.uppercased()) },
+                completion: { result = $0 }
+            ))
+
+            XCTAssertEqual(result, .replaced(TextTransformation(text: "👩‍💻HELLO")))
+            XCTAssertEqual(fixture.eventReplacer.calls, [.init(deleteCount: 5, text: "HELLO")])
+            XCTAssertEqual(fixture.buffer.snapshot(for: "editor")?.text, "👩‍💻HELLO")
+        }
+    }
+
+    func testLastWordCanBeReplacedAfterMultiScalarGraphemeOutsideDeletionRange() {
+        let fixture = Fixture(text: "e\u{301} élève привет")
         var result: TextReplacementResult?
 
         XCTAssertTrue(fixture.editor.replaceTrackedText(
@@ -49,9 +85,9 @@ final class TrackedTextEventEditorTests: XCTestCase {
             completion: { result = $0 }
         ))
 
-        XCTAssertEqual(result, .replaced(TextTransformation(text: "ÉX")))
-        XCTAssertEqual(fixture.eventReplacer.calls, [.init(deleteCount: 2, text: "ÉX")])
-        XCTAssertEqual(fixture.buffer.snapshot(for: "editor")?.text, "ÉX")
+        XCTAssertEqual(result, .replaced(TextTransformation(text: "ПРИВЕТ")))
+        XCTAssertEqual(fixture.eventReplacer.calls, [.init(deleteCount: 6, text: "ПРИВЕТ")])
+        XCTAssertEqual(fixture.buffer.snapshot(for: "editor")?.text, "e\u{301} élève ПРИВЕТ")
     }
 
     func testTypedTextReplacesWholeTrackedBuffer() {

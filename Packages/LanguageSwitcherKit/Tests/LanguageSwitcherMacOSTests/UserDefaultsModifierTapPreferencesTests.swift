@@ -24,12 +24,12 @@ final class UserDefaultsModifierTapPreferencesTests: XCTestCase {
     func testStoresSupportedKeyboardSwitchingDuration() {
         let preferences = UserDefaultsModifierTapPreferences(userDefaults: defaults)
 
-        XCTAssertEqual(preferences.maximumDuration, 0.2)
+        XCTAssertEqual(preferences.maximumDuration, 0.3)
 
-        preferences.maximumDuration = 0.7
+        preferences.maximumDuration = 0.2
 
-        XCTAssertEqual(preferences.maximumDuration, 0.7)
-        XCTAssertEqual(defaults.double(forKey: "keyboardSwitching.maximumTapDuration"), 0.7)
+        XCTAssertEqual(UserDefaultsModifierTapPreferences(userDefaults: defaults).maximumDuration, 0.2)
+        XCTAssertEqual(defaults.double(forKey: "keyboardSwitching.maximumTapDuration"), 0.2)
     }
 
     func testRejectsUnsupportedDuration() {
@@ -37,6 +37,6 @@ final class UserDefaultsModifierTapPreferencesTests: XCTestCase {
 
         preferences.maximumDuration = 0.25
 
-        XCTAssertEqual(preferences.maximumDuration, 0.2)
+        XCTAssertEqual(preferences.maximumDuration, 0.3)
     }
 }

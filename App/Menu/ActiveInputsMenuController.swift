@@ -10,7 +10,7 @@ import LanguageSwitcherDomain
 final class ActiveInputsMenuController: NSObject {
     private enum Layout {
         static let maximumControlWidth: CGFloat = 260
-        static let navigationButtonWidth: CGFloat = 14
+        static let navigationButtonWidth: CGFloat = 20
     }
 
     private let inputSources: () -> [InputSource]

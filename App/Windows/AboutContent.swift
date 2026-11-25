@@ -12,7 +12,8 @@ final class AboutContent {
     let statusLabel = NSTextField(wrappingLabelWithString: "")
 
     init(name: String, icon: NSImage, tagline: String, copyright: String,
-         updateButton: NSButton, gitHubButton: NSButton, licensesButton: NSButton, statusIdentifier: String) {
+         updateButton: NSButton, releaseButton: NSButton, gitHubButton: NSButton, licensesButton: NSButton,
+         statusIdentifier: String) {
         let windowWidth = AppStyle.AboutLayout.width
         let contentWidth = windowWidth - 2 * AppStyle.Layout.windowInset
         let windowContent = self.view
@@ -38,8 +39,7 @@ final class AboutContent {
         taglineLabel.preferredMaxLayoutWidth = contentWidth
         taglineLabel.lineBreakMode = .byWordWrapping
 
-        updateButton.bezelStyle = .rounded
-        updateButton.font = AppStyle.Font.controlLabel
+        AppStyle.configureCompactButton(updateButton)
         updateButton.keyEquivalent = "\r"
         updateButton.widthAnchor.constraint(equalToConstant: AppStyle.AboutLayout.updateButtonWidth).isActive = true
 
@@ -71,12 +71,19 @@ final class AboutContent {
         statusLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: AppStyle.AboutLayout.statusHeight).isActive = true
         statusLabel.widthAnchor.constraint(equalToConstant: contentWidth).isActive = true
 
+        releaseButton.isBordered = false
+        releaseButton.contentTintColor = .linkColor
+        releaseButton.font = AppStyle.Font.statusText
+        releaseButton.alignment = .left
+        releaseButton.cell?.lineBreakMode = .byTruncatingTail
+        releaseButton.isHidden = true
+
         let name = AppStyle.makeAboutIdentityView(name: name,
                                              availableWidth: contentWidth - AppStyle.AboutLayout.iconSize
                                                  - AppStyle.AboutLayout.headerSpacing)
         let header = NSStackView(views: [iconView, name])
         header.orientation = .horizontal
-        header.alignment = .top
+        header.alignment = .centerY
         header.spacing = AppStyle.AboutLayout.headerSpacing
 
         // Align the borderless button's title with the text labels above it.
@@ -96,13 +103,16 @@ final class AboutContent {
         footer.alignment = .centerY
         footer.spacing = 8
 
-        [header, taglineLabel, actionStack, statusLabel, footer].forEach(contentStack.addArrangedSubview)
+        [header, taglineLabel, actionStack, statusLabel, releaseButton, footer].forEach(contentStack.addArrangedSubview)
         contentStack.orientation = .vertical
         contentStack.alignment = .leading
         contentStack.spacing = AppStyle.AboutLayout.contentSpacing
         contentStack.setCustomSpacing(12, after: taglineLabel)
         contentStack.setCustomSpacing(4, after: actionStack)
         contentStack.setCustomSpacing(AppStyle.AboutLayout.statusFooterSpacing, after: statusLabel)
+        contentStack.setCustomSpacing(AppStyle.AboutLayout.statusFooterSpacing, after: releaseButton)
+        releaseButton.widthAnchor.constraint(lessThanOrEqualTo: contentStack.widthAnchor).isActive = true
+        releaseButton.heightAnchor.constraint(greaterThanOrEqualToConstant: AppStyle.AboutLayout.statusHeight).isActive = true
         contentStack.translatesAutoresizingMaskIntoConstraints = false
         windowContent.addSubview(contentStack)
         NSLayoutConstraint.activate([

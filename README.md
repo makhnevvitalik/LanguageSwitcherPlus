@@ -79,7 +79,7 @@ Text action shortcuts run **Convert Layout**, **Uppercase**, **Lowercase**, **Ca
 
 Open **Text actions → Shortcuts → Configure…** to assign shortcuts. Use Shift, Control, Option, Command, or F1–F20. Letters and digits require Control, Option, or Command, with optional Shift. Their labels follow the physical positions on a US keyboard. No text-action shortcuts are assigned by default.
 
-With Accessibility enabled, Language Switcher intercepts the letter or digit in an assigned combination from the first press, including for double presses. This keeps the active app from running its own command on the same keys and lets Language Switcher act on recently typed text. The editor blocks shortcuts reported as enabled by macOS. For other standard macOS shortcuts and common app commands, it shows a warning below the recorded keys. To proceed, choose **Assign Anyway**. To use different keys, record another combination. Warnings about app commands use the active keyboard layout.
+With Accessibility enabled, Language Switcher intercepts the letter or digit in an assigned combination from the first press, including for double presses. This keeps the active app from running its own command on the same keys and lets Language Switcher act on recently typed text. The editor blocks shortcuts reported as enabled by macOS. It warns about other standard macOS shortcuts, common app commands, and Option combinations that type a character or start composing one in a keyboard layout enabled in macOS. The warning shows the current layout if affected, or another enabled layout. To proceed, choose **Assign Anyway**. To use different keys, record another combination.
 
 #### Press patterns
 
@@ -99,7 +99,7 @@ Once and Twice may use the same keys for different actions. In that case, the On
 - **Last word** — only the most recently typed word.
 - **Selection** — selected text.
 
-In **Typed text** and **Last word**, the shortcut uses tracked text when available and falls back to the selection. Selecting with the mouse or standard keyboard shortcuts usually clears the tracked text. Menu actions always target the selection.
+In **Typed text** and **Last word**, use the mouse or standard keyboard shortcuts to select text for the action. With no selection, the shortcut acts on all tracked typed text or the last tracked word, depending on the mode. If the active app creates a selection itself, such as for autocomplete, the shortcut may still act on typed text. Menu actions always target the selection.
 
 ### License
 
@@ -162,11 +162,11 @@ Language Switcher Plus требует macOS 14 или новее.
 
 #### Настройка сочетаний
 
-Сочетания позволяют запускать действия **Сменить раскладку**, **Верхний регистр**, **Нижний регистр**, **С прописной буквы** и **Инвертировать регистр**, не открывая меню.
+Сочетания позволяют запускать действия **Сменить раскладку**, **Верхний регистр**, **Нижний регистр**, **Каждое слово с прописной** и **Инвертировать регистр**, не открывая меню.
 
 Откройте **Действия с текстом → Сочетания клавиш → Настроить…**, чтобы назначить сочетания. Поддерживаются Shift, Control, Option, Command и F1–F20. Для букв и цифр нужен Control, Option или Command. К ним можно добавить Shift. Подписи букв и цифр соответствуют физическим позициям на американской клавиатуре. По умолчанию сочетания для действий с текстом не назначены.
 
-С разрешением «Универсальный доступ» Language Switcher перехватывает букву или цифру в назначенном сочетании с первого нажатия, в том числе для двойного жеста. Благодаря этому активное приложение не выполняет свою команду на этих клавишах, а Language Switcher может обработать недавно набранный текст. Редактор блокирует сочетания, которые macOS сообщает как включённые. Для остальных стандартных сочетаний macOS и распространённых команд приложений под полем записи появляется предупреждение. Чтобы продолжить, нажмите **Назначить всё равно**. Чтобы выбрать другие клавиши, запишите новое сочетание. Для предупреждений о командах приложений учитывается активная раскладка.
+С разрешением «Универсальный доступ» Language Switcher перехватывает букву или цифру в назначенном сочетании с первого нажатия, в том числе для двойного жеста. Благодаря этому активное приложение не выполняет свою команду на этих клавишах, а Language Switcher может обработать недавно набранный текст. Редактор блокирует сочетания, которые macOS сообщает как включённые. Он предупреждает об остальных стандартных сочетаниях macOS, распространённых командах приложений и сочетаниях с Option, которые вводят символ или начинают ввод составного символа в одной из раскладок, включённых в macOS. Предупреждение показывает текущую раскладку, если сочетание влияет на ввод в ней, или другую включённую раскладку. Чтобы продолжить, нажмите **Назначить всё равно**. Чтобы выбрать другие клавиши, запишите новое сочетание.
 
 #### Варианты нажатия
 
@@ -186,7 +186,7 @@ Language Switcher Plus требует macOS 14 или новее.
 - **Последнее слово** — только последнее введённое слово.
 - **Выделение** — выделенный текст.
 
-В режимах **Набранное** и **Последнее слово** сочетание сначала использует отслеживаемый текст и обращается к выделению, если подходящего набранного текста нет. Выделение мышью или стандартными сочетаниями клавиш обычно очищает буфер набранного текста. Действия из меню всегда применяются к выделению.
+В режимах **Набранное** и **Последнее слово** сочетание обрабатывает текст, выделенный мышью или стандартными сочетаниями клавиш. Без выделения оно обрабатывает весь отслеживаемый набранный текст или последнее отслеживаемое слово в зависимости от режима. Когда приложение само выделяет текст, например при автодополнении, сочетание может обработать набранный текст. Действия из меню всегда применяются к выделению.
 
 ### Лицензия
 

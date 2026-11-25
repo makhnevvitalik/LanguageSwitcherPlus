@@ -13,7 +13,7 @@ final class TextToolsMenuController: NSObject, NSMenuDelegate {
     private let performAction: (TextAction) -> Void
     private let currentScope: () -> TextConversionScope
     private let setScope: (TextConversionScope) -> Void
-    private let configureShortcuts: () -> Void
+    private let configureShortcuts: (NSButton) -> Void
     private let currentMultiPressInterval: () -> TimeInterval
     private let setMultiPressInterval: (TimeInterval) -> Void
     private let multiPressIntervalOptions: [TimeInterval]
@@ -26,12 +26,8 @@ final class TextToolsMenuController: NSObject, NSMenuDelegate {
     var onWillPerformAction: (() -> Void)?
     var allowsCaseActions = true
     private lazy var configureButton: NSButton = {
-        let button = NSButton(title: localized("Configure…"), target: self, action: #selector(showShortcutSettings))
-        button.controlSize = .small
-        button.bezelStyle = .inline
-        button.isBordered = false
-        button.contentTintColor = .linkColor
-        button.font = AppStyle.Font.controlLabel
+        let button = NSButton(title: localized("Configure…"), target: self, action: #selector(showShortcutSettings(_:)))
+        AppStyle.configureCompactButton(button)
         return button
     }()
 
@@ -48,7 +44,9 @@ final class TextToolsMenuController: NSObject, NSMenuDelegate {
             Divider()
             PanelRow(title: localized("Apply to")) { PanelNativeControl(view: scopeButton) }
             Divider()
-            PanelRow(title: localized("Shortcuts")) { PanelNativeControl(view: configureButton) }
+            PanelRow(title: localized("Shortcuts")) {
+                PanelNativeControl(view: configureButton)
+            }
             Divider()
             PanelRow(title: localized("Double-press interval"), detail: localized("Maximum pause between two presses")) {
                 PanelNativeControl(view: intervalButton)
@@ -62,7 +60,7 @@ final class TextToolsMenuController: NSObject, NSMenuDelegate {
         performAction: @escaping (TextAction) -> Void,
         currentScope: @escaping () -> TextConversionScope,
         setScope: @escaping (TextConversionScope) -> Void,
-        configureShortcuts: @escaping () -> Void,
+        configureShortcuts: @escaping (NSButton) -> Void,
         currentMultiPressInterval: @escaping () -> TimeInterval,
         setMultiPressInterval: @escaping (TimeInterval) -> Void,
         multiPressIntervalOptions: [TimeInterval],
@@ -182,9 +180,8 @@ final class TextToolsMenuController: NSObject, NSMenuDelegate {
         refresh()
     }
 
-    @objc private func showShortcutSettings() {
-        onWillPerformAction?()
-        configureShortcuts()
+    @objc private func showShortcutSettings(_ sender: NSButton) {
+        configureShortcuts(sender)
     }
 
     @objc private func selectMultiPressInterval(_ sender: NSPopUpButton) {

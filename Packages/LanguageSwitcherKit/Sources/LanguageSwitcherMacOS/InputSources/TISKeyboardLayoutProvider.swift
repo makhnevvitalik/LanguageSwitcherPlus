@@ -100,7 +100,19 @@ public final class TISKeyboardLayoutProvider: KeyboardLayoutProvider {
         keyCode: UInt16,
         modifiers: UInt32
     ) -> String? {
-        layoutData.withUnsafeBytes { rawBuffer -> String? in
+        guard let translation = translate(layoutData: layoutData, keyCode: keyCode, modifiers: modifiers),
+              !translation.isDeadKey, !translation.text.isEmpty else {
+            return nil
+        }
+        return translation.text
+    }
+
+    static func translate(
+        layoutData: Data,
+        keyCode: UInt16,
+        modifiers: UInt32
+    ) -> (text: String, isDeadKey: Bool)? {
+        layoutData.withUnsafeBytes { rawBuffer in
             guard let baseAddress = rawBuffer.baseAddress else {
                 return nil
             }
@@ -126,10 +138,8 @@ public final class TISKeyboardLayoutProvider: KeyboardLayoutProvider {
                 &characters
             )
 
-            guard status == noErr, deadKeyState == 0, actualLength > 0 else {
-                return nil
-            }
-            return String(utf16CodeUnits: characters, count: Int(actualLength))
+            guard status == noErr else { return nil }
+            return (String(utf16CodeUnits: characters, count: actualLength), deadKeyState != 0)
         }
     }
 }

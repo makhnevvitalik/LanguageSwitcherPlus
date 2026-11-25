@@ -62,7 +62,10 @@ enum AppCompositionRoot {
             textShortcutTimingPreferences: UserDefaultsTextShortcutTimingPreferences(),
             textScopeStore: textScopeStore,
             textShortcutStore: textShortcutStore,
-            configureTextShortcut: ConfigureTextActionShortcut(store: textShortcutStore),
+            configureTextShortcut: ConfigureTextActionShortcut(
+                store: textShortcutStore,
+                checkConflict: { TextShortcutConflictDetector.conflict(for: $0) }
+            ),
             performTextAction: PerformTextAction(
                 selectedTextReplacer: selectedTextEditor,
                 trackedTextReplacer: trackedTextEditor,

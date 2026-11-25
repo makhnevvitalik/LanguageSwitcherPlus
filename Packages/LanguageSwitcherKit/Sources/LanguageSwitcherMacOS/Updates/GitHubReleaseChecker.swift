@@ -40,6 +40,7 @@ public final class GitHubReleaseChecker {
     private var completions: [(ReleaseUpdateResult) -> Void] = []
 
     public var isChecking: Bool { requestID != nil }
+    public var onCheckStarted: (() -> Void)?
 
     public convenience init(
         apiURL: URL,
@@ -104,6 +105,7 @@ public final class GitHubReleaseChecker {
                 completions.forEach { $0(result) }
             }
         }
+        onCheckStarted?()
         task?.resume()
     }
 

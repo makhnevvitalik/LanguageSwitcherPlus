@@ -28,14 +28,7 @@ struct PanelContent: View {
         VStack(alignment: .leading, spacing: AppStyle.Layout.cardSpacing) {
             header
             if let warning = presentation.monitoringWarning {
-                HStack {
-                    Image(systemName: "exclamationmark.shield").foregroundStyle(.orange)
-                    Text(warning.title).font(Font(AppStyle.Font.fieldLabel))
-                    Spacer()
-                    Button(warning.buttonTitle, action: resume)
-                }
-                .padding(8).padding(.horizontal, 4)
-                .background(Color.yellow.opacity(0.16), in: RoundedRectangle(cornerRadius: AppStyle.Layout.cardCornerRadius))
+                monitoringNotice(warning)
             }
             textTools.content(isPanel: presentation.isPanel)
             keyboardSwitching.content
@@ -45,6 +38,19 @@ struct PanelContent: View {
         .controlSize(.small)
         .font(Font(AppStyle.Font.body))
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func monitoringNotice(_ warning: KeyboardMonitoringWarning) -> some View {
+        HStack {
+            Image(systemName: "exclamationmark.shield").foregroundStyle(.orange).accessibilityHidden(true)
+            Text(warning.title)
+                .font(Font(AppStyle.Font.fieldLabel))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(warning.buttonTitle, action: resume).fixedSize()
+        }
+        .padding(8).padding(.horizontal, 4)
+        .background(Color.yellow.opacity(0.16), in: RoundedRectangle(cornerRadius: AppStyle.Layout.cardCornerRadius))
     }
 
     private var header: some View {
@@ -63,15 +69,15 @@ struct PanelContent: View {
                         version
                     }.fixedSize(horizontal: false, vertical: true)
                 }
-                Group {
-                    if updateAvailability.release != nil {
-                        Button(localized("Update available"), action: openRelease).buttonStyle(.link)
-                    } else {
-                        Color.clear.frame(width: 0).accessibilityHidden(true)
-                    }
+                if updateAvailability.release != nil {
+                    Button(localized("Update available"), action: openRelease)
+                        .buttonStyle(.link)
+                        .font(Font(AppStyle.Font.statusText))
+                        .frame(minHeight: AppStyle.Layout.headerStatusHeight)
+                } else {
+                    Color.clear.frame(width: 0, height: AppStyle.Layout.headerStatusHeight)
+                        .accessibilityHidden(true)
                 }
-                .font(Font(AppStyle.Font.statusText))
-                .frame(minHeight: AppStyle.Layout.headerStatusHeight)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             PanelNativeControl(view: settingsButton)

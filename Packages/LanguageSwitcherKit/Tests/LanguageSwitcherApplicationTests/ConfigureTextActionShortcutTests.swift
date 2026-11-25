@@ -91,6 +91,46 @@ final class ConfigureTextActionShortcutTests: XCTestCase {
         )
     }
 
+    func testSystemConflictBlocksSavingEvenWhenPreviouslyReviewed() {
+        let store = TextActionShortcutStoreMock()
+        let action = TextAction.convertToNextLayout
+        let original = TextActionShortcut.once(TextShortcutChord(modifiers: .shift, functionKey: nil))
+        let proposed = TextActionShortcut.once(TextShortcutChord(
+            modifiers: .control, key: .alphanumeric(.init(rawValue: "C")!)
+        ))
+        store.setShortcut(original, for: action)
+        let useCase = ConfigureTextActionShortcut(store: store, checkConflict: { _ in .system })
+
+        XCTAssertEqual(useCase.validateShortcut(proposed, for: action), .externalConflict(.system))
+        XCTAssertEqual(useCase.setShortcut(proposed, for: action), .requiresConflictReview(.system))
+        XCTAssertEqual(useCase.setShortcut(proposed, for: action, reviewedConflict: .system), .requiresConflictReview(.system))
+        XCTAssertEqual(store.shortcut(for: action), original)
+        XCTAssertEqual(useCase.setShortcut(nil, for: action), .updated)
+        XCTAssertNil(store.shortcut(for: action))
+    }
+
+    func testSavingRequiresReviewOfTheCurrentWarning() {
+        let store = TextActionShortcutStoreMock()
+        let action = TextAction.convertToNextLayout
+        let proposed = TextActionShortcut.once(TextShortcutChord(
+            modifiers: .option, key: .alphanumeric(.init(rawValue: "E")!)
+        ))
+        let originalWarning = TextShortcutConflict.typing(layout: "ABC", effect: .startsComposition)
+        let currentWarning = TextShortcutConflict.typing(layout: "Other Layout", effect: .insertsText("é"))
+        var conflict: TextShortcutConflict? = originalWarning
+        let useCase = ConfigureTextActionShortcut(store: store, checkConflict: { _ in conflict })
+
+        XCTAssertEqual(useCase.setShortcut(proposed, for: action), .requiresConflictReview(originalWarning))
+        conflict = nil
+        XCTAssertEqual(useCase.setShortcut(proposed, for: action, reviewedConflict: originalWarning), .requiresConflictReview(nil))
+        conflict = currentWarning
+        XCTAssertEqual(useCase.setShortcut(proposed, for: action, reviewedConflict: originalWarning),
+                       .requiresConflictReview(currentWarning))
+        XCTAssertNil(store.shortcut(for: action))
+        XCTAssertEqual(useCase.setShortcut(proposed, for: action, reviewedConflict: currentWarning), .updated)
+        XCTAssertEqual(store.shortcut(for: action), proposed)
+    }
+
     func testAllowsOnceAndRepeatOnSameChord() {
         let store = TextActionShortcutStoreMock()
         let chord = TextShortcutChord(modifiers: [.control, .shift], functionKey: nil)

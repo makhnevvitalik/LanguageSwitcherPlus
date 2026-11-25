@@ -104,10 +104,39 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         closePanel()
     }
 
+    func leaveForShortcutSettings(from trigger: NSButton) -> (() -> Void)? {
+        guard let source = trigger.window else { return nil }
+        return leaveForAuxiliaryWindow(from: source, restoringFocusTo: source.firstResponder === trigger ? trigger : nil)
+    }
+
+    private func leaveForAuxiliaryWindow(from source: NSWindow, restoringFocusTo trigger: NSControl?) -> (() -> Void)? {
+        guard source === panel || source === settingsWindow else { return nil }
+        let isPanel = source === panel
+        let scrollOrigin = scrollView.contentView.bounds.origin
+        if isPanel {
+            closePanel()
+        }
+        return { [weak self, weak source, weak trigger] in
+            guard let self, let source else { return }
+            if isPanel {
+                guard self.settingsWindow?.isVisible != true, self.statusItem.isVisible else { return }
+                self.showPanel()
+                let clip = self.scrollView.contentView
+                let bounds = NSRect(origin: scrollOrigin, size: clip.bounds.size)
+                clip.scroll(to: clip.constrainBoundsRect(bounds).origin)
+                self.scrollView.reflectScrolledClipView(clip)
+            } else if source.isVisible {
+                source.makeKeyAndOrderFront(nil)
+            }
+            if let trigger, trigger.window === source, trigger.isEnabled, source.isVisible {
+                source.makeFirstResponder(trigger)
+            }
+        }
+    }
+
     func refreshUpdateAvailability() {
         updateStatusBadge()
         resizeVisibleSurface()
-        aboutWindowController.refreshUpdateAvailability()
     }
 
     func refreshMonitoringState() {
@@ -516,8 +545,11 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     }
 
     @objc private func showAbout() {
-        closePanel()
-        aboutWindowController.showWindow()
+        let source = panel.isVisible ? panel : settingsWindow.flatMap { $0.isVisible ? $0 : nil }
+        let returnToSource = source.flatMap {
+            leaveForAuxiliaryWindow(from: $0, restoringFocusTo: AppStyle.restorableControl(in: $0))
+        }
+        aboutWindowController.showWindow(returningTo: returnToSource)
     }
 
     @objc private func openAvailableRelease() {

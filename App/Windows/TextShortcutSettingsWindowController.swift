@@ -7,15 +7,17 @@ import LanguageSwitcherDomain
 
 @MainActor
 final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
+    private static let windowWidth: CGFloat = 780
     private let shortcut: (TextAction) -> TextActionShortcut?
     private let validateShortcut: (
         TextActionShortcut,
         TextAction
     ) -> TextActionShortcutValidationResult
-    private let setShortcut: (TextActionShortcut?, TextAction) -> ConfigureTextActionShortcutResult
+    private let setShortcut: (TextActionShortcut?, TextAction, TextShortcutConflict?) -> ConfigureTextActionShortcutResult
     private let onRecordingChanged: (Bool) -> Void
     private var settingsWindow: NSWindow?
     private var editor: TextShortcutEditorSheetController?
+    private var returnToSource: (() -> Void)?
 
     init(
         shortcut: @escaping (TextAction) -> TextActionShortcut?,
@@ -23,7 +25,7 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
             TextActionShortcut,
             TextAction
         ) -> TextActionShortcutValidationResult,
-        setShortcut: @escaping (TextActionShortcut?, TextAction) -> ConfigureTextActionShortcutResult,
+        setShortcut: @escaping (TextActionShortcut?, TextAction, TextShortcutConflict?) -> ConfigureTextActionShortcutResult,
         onRecordingChanged: @escaping (Bool) -> Void
     ) {
         self.shortcut = shortcut
@@ -32,11 +34,14 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
         self.onRecordingChanged = onRecordingChanged
     }
 
-    func showWindow() {
+    func showWindow(returningTo source: (() -> Void)? = nil) {
         if settingsWindow == nil {
             settingsWindow = makeWindow()
         }
-        refreshContent()
+        if let source { returnToSource = source }
+        if settingsWindow?.isVisible != true {
+            refreshContent()
+        }
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -44,11 +49,18 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         editor?.cancel()
         editor = nil
+        if let returnToSource {
+            self.returnToSource = nil
+            DispatchQueue.main.async { [weak self] in
+                guard self?.settingsWindow?.isVisible == false else { return }
+                returnToSource()
+            }
+        }
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 780, height: 360),
+        let window = AppStyle.SettingsWindow(
+            contentRect: NSRect(x: 0, y: 0, width: Self.windowWidth, height: 336),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -60,20 +72,18 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
         return window
     }
 
-    private func refreshContent() {
+    private func refreshContent(focusingActionAt focusedIndex: Int? = nil) {
         guard let window = settingsWindow else { return }
 
         let content = ShortcutSettingsContentView()
         let title = NSTextField(labelWithString: localized("Text action shortcuts"))
         title.font = AppStyle.Font.windowTitle
 
-        let hint = NSTextField(
-            wrappingLabelWithString: localized("Choose whether to press a shortcut once, repeat the whole shortcut, or hold modifiers and tap the final key twice.")
-        )
-        hint.textColor = .secondaryLabelColor
-        hint.font = AppStyle.Font.supportingText
-        hint.maximumNumberOfLines = 2
-
+        var editButtons: [NSButton] = []
+        var rowButtons: [NSButton] = []
+        var shortcutLabels: [NSTextField] = []
+        let actionWidth: CGFloat = 190
+        let rowSpacing = AppStyle.Layout.rowItemSpacing
         let rows = TextAction.allCases.enumerated().map { index, action -> NSView in
             let configured = shortcut(action)
             let actionLabel = NSTextField(labelWithString: action.title)
@@ -86,53 +96,49 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
             actionLabels.alignment = .leading
             actionLabels.spacing = 2
 
-            let shortcutLabel = NSTextField(
-                labelWithString: TextActionShortcutFormatter.string(for: configured)
-            )
-            shortcutLabel.textColor = configured == nil ? .tertiaryLabelColor : .secondaryLabelColor
-            shortcutLabel.font = AppStyle.Font.body
+            let shortcutLabel = NSTextField(wrappingLabelWithString: TextActionShortcutFormatter.string(for: configured))
+            shortcutLabel.textColor = configured == nil ? .secondaryLabelColor : AppStyle.Color.stateDetailText
+            shortcutLabel.font = AppStyle.Font.controlLabel
+            shortcutLabel.lineBreakMode = .byWordWrapping
             shortcutLabel.alignment = .center
             shortcutLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
-            shortcutLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+            shortcutLabels.append(shortcutLabel)
 
             let setButton = NSButton(
                 title: configured == nil ? localized("Set…") : localized("Change…"),
                 target: self,
                 action: #selector(editShortcut(_:))
             )
-            setButton.font = AppStyle.Font.controlLabel
+            AppStyle.configureCompactButton(setButton)
             setButton.tag = index
-            setButton.bezelStyle = .rounded
-            setButton.widthAnchor.constraint(equalToConstant: 100).isActive = true
 
             let clearButton = NSButton(
                 title: localized("Clear"),
                 target: self,
                 action: #selector(clearShortcut(_:))
             )
-            clearButton.font = AppStyle.Font.controlLabel
+            AppStyle.configureCompactButton(clearButton)
             clearButton.tag = index
-            clearButton.bezelStyle = .rounded
-            clearButton.alignment = .center
             clearButton.isEnabled = configured != nil
 
-            let clearSlot = NSView()
-            clearSlot.widthAnchor.constraint(equalToConstant: 86).isActive = true
-            clearButton.translatesAutoresizingMaskIntoConstraints = false
-            clearSlot.addSubview(clearButton)
-            NSLayoutConstraint.activate([
-                clearButton.leadingAnchor.constraint(equalTo: clearSlot.leadingAnchor),
-                clearButton.trailingAnchor.constraint(equalTo: clearSlot.trailingAnchor),
-                clearButton.centerYAnchor.constraint(equalTo: clearSlot.centerYAnchor)
-            ])
-
-            let row = NSStackView(views: [actionLabels, shortcutLabel, setButton, clearSlot])
+            editButtons.append(setButton)
+            rowButtons.append(contentsOf: [setButton, clearButton])
+            let row = NSStackView(views: [actionLabels, shortcutLabel, setButton, clearButton])
             row.orientation = .horizontal
             row.alignment = .centerY
             row.distribution = .fill
-            row.spacing = 12
-            actionLabels.widthAnchor.constraint(equalToConstant: 190).isActive = true
+            row.spacing = rowSpacing
+            actionLabels.widthAnchor.constraint(equalToConstant: actionWidth).isActive = true
             return row
+        }
+
+        let buttonWidth = ceil(rowButtons.map(\.intrinsicContentSize.width).max() ?? 0)
+        for button in rowButtons {
+            button.widthAnchor.constraint(equalToConstant: buttonWidth).isActive = true
+        }
+        let valueWidth = Self.windowWidth - 2 * AppStyle.Layout.windowInset - actionWidth - 3 * rowSpacing - 2 * buttonWidth
+        for label in shortcutLabels {
+            label.preferredMaxLayoutWidth = valueWidth
         }
 
         let rowsStack = NSStackView(views: rows)
@@ -143,11 +149,10 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
             row.widthAnchor.constraint(equalTo: rowsStack.widthAnchor).isActive = true
         }
 
-        let stack = NSStackView(views: [title, hint, rowsStack])
+        let stack = NSStackView(views: [title, rowsStack])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 9
-        stack.setCustomSpacing(20, after: hint)
+        stack.spacing = 20
         stack.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(stack)
 
@@ -155,12 +160,20 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
             stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: AppStyle.Layout.windowInset),
             stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -AppStyle.Layout.windowInset),
             stack.topAnchor.constraint(equalTo: content.topAnchor, constant: AppStyle.Layout.windowTopInset),
-            hint.widthAnchor.constraint(equalTo: stack.widthAnchor),
             rowsStack.widthAnchor.constraint(equalTo: stack.widthAnchor)
         ])
         window.contentView = content
         window.initialFirstResponder = content
-        window.makeFirstResponder(content)
+        window.autorecalculatesKeyViewLoop = false
+        let keyViews: [NSView] = [content] + rowButtons
+        for (view, next) in zip(keyViews, keyViews.dropFirst() + [content]) {
+            view.nextKeyView = next
+        }
+        if let focusedIndex, editButtons.indices.contains(focusedIndex) {
+            window.makeFirstResponder(editButtons[focusedIndex])
+        } else {
+            window.makeFirstResponder(content)
+        }
     }
 
     @objc private func editShortcut(_ sender: NSButton) {
@@ -181,15 +194,17 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
             validate: { [validateShortcut] newShortcut in
                 validateShortcut(newShortcut, action)
             },
-            save: { [setShortcut] newShortcut in
-                setShortcut(newShortcut, action)
+            save: { [setShortcut] newShortcut, reviewedConflict in
+                setShortcut(newShortcut, action, reviewedConflict)
             },
             onRecordingChanged: onRecordingChanged,
-            onFinish: { [weak self] didSave in
+            onFinish: { [weak self, weak sender] didSave in
                 guard let self else { return }
                 self.editor = nil
                 if didSave {
-                    self.refreshContent()
+                    self.refreshContent(focusingActionAt: TextAction.allCases.firstIndex(of: action))
+                } else if let sender, sender.window?.isVisible == true {
+                    sender.window?.makeFirstResponder(sender)
                 }
             }
         )
@@ -200,14 +215,27 @@ final class TextShortcutSettingsWindowController: NSObject, NSWindowDelegate {
     @objc private func clearShortcut(_ sender: NSButton) {
         guard TextAction.allCases.indices.contains(sender.tag) else { return }
         let action = TextAction.allCases[sender.tag]
-        if setShortcut(nil, action) == .updated {
-            refreshContent()
+        if setShortcut(nil, action, nil) == .updated {
+            refreshContent(focusingActionAt: sender.tag)
         }
     }
 }
 
 private final class ShortcutSettingsContentView: NSView {
     override var acceptsFirstResponder: Bool { true }
+    override var canBecomeKeyView: Bool { false }
+
+    override func keyDown(with event: NSEvent) {
+        guard event.keyCode == 48 else {
+            super.keyDown(with: event)
+            return
+        }
+        if event.modifierFlags.contains(.shift) {
+            window?.selectPreviousKeyView(self)
+        } else {
+            window?.selectNextKeyView(self)
+        }
+    }
 }
 
 @MainActor
