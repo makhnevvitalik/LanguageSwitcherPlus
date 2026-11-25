@@ -3,6 +3,7 @@
 
 import AppKit
 import SwiftUI
+import LanguageSwitcherMacOS
 
 @MainActor
 final class PanelPresentation: ObservableObject {
@@ -13,7 +14,7 @@ final class PanelPresentation: ObservableObject {
 @MainActor
 struct PanelContent: View {
     @ObservedObject var presentation: PanelPresentation
-    @ObservedObject var updateAvailability: UpdateAvailability
+    @ObservedObject var updates: GitHubReleaseChecker
     let name: String
     let width: CGFloat
     let settingsButton: NSPopUpButton
@@ -69,7 +70,7 @@ struct PanelContent: View {
                         version
                     }.fixedSize(horizontal: false, vertical: true)
                 }
-                if updateAvailability.release != nil {
+                if updates.availableRelease != nil {
                     Button(localized("Update available"), action: openRelease)
                         .buttonStyle(.link)
                         .font(Font(AppStyle.Font.statusText))

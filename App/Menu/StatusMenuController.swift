@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
 import AppKit
+import Combine
 import Foundation
 import SwiftUI
 import LanguageSwitcherEdition
 import LanguageSwitcherLocalization
+import LanguageSwitcherMacOS
 
 @MainActor
 final class StatusMenuController: NSObject, NSMenuDelegate {
@@ -25,7 +27,8 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     private let textToolsController: TextToolsMenuController
     private let keyboardSwitchingController: KeyboardSwitchingMenuController
     private let aboutWindowController: AboutWindowController
-    private let updateAvailability: UpdateAvailability
+    private let updates: GitHubReleaseChecker
+    private var updateObservation: AnyCancellable?
     private let currentState: () -> StatusMenuState
     private let onResumeKeyboardSwitching: () -> Void
     private let onLaunchAtLoginChange: (Bool) -> Void
@@ -52,7 +55,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         textToolsController: TextToolsMenuController,
         keyboardSwitchingController: KeyboardSwitchingMenuController,
         aboutWindowController: AboutWindowController,
-        updateAvailability: UpdateAvailability,
+        updates: GitHubReleaseChecker,
         currentState: @escaping () -> StatusMenuState,
         onResumeKeyboardSwitching: @escaping () -> Void,
         onLaunchAtLoginChange: @escaping (Bool) -> Void,
@@ -66,7 +69,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         self.textToolsController = textToolsController
         self.keyboardSwitchingController = keyboardSwitchingController
         self.aboutWindowController = aboutWindowController
-        self.updateAvailability = updateAvailability
+        self.updates = updates
         self.currentState = currentState
         self.onResumeKeyboardSwitching = onResumeKeyboardSwitching
         self.onLaunchAtLoginChange = onLaunchAtLoginChange
@@ -74,6 +77,12 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         super.init()
         configureStatusItem()
         configurePanel()
+        updateObservation = updates.$availableRelease.dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateStatusBadge()
+                self?.resizeVisibleSurface()
+            }
         textToolsController.onWillPerformAction = { [weak self] in
             self?.closePanel()
         }
@@ -132,11 +141,6 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
                 source.makeFirstResponder(trigger)
             }
         }
-    }
-
-    func refreshUpdateAvailability() {
-        updateStatusBadge()
-        resizeVisibleSurface()
     }
 
     func refreshMonitoringState() {
@@ -278,7 +282,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         canvas.addSubview(shadowContainer)
 
         hosting = NSHostingController(rootView: PanelContent(
-            presentation: presentation, updateAvailability: updateAvailability, name: identity.productName,
+            presentation: presentation, updates: updates, name: identity.productName,
             width: Self.panelContentWidth, settingsButton: makeSettingsButton(),
             textTools: textToolsController, keyboardSwitching: keyboardSwitchingController,
             resume: { [weak self] in self?.resumeInputMonitoring() },
@@ -400,7 +404,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         if let warning = presentation.monitoringWarning {
             statusBadge.color = .systemOrange
             detail = warning.title
-        } else if updateAvailability.release != nil {
+        } else if updates.availableRelease != nil {
             statusBadge.color = .systemBlue
             detail = localized("Update available")
         } else {
@@ -553,7 +557,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openAvailableRelease() {
-        guard let release = updateAvailability.release else { return }
+        guard let release = updates.availableRelease else { return }
         closePanel()
         NSWorkspace.shared.open(release.url)
     }

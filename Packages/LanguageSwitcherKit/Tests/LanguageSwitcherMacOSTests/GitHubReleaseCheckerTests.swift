@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Vitalik Makhnev
 // SPDX-License-Identifier: MIT AND LicenseRef-Commons-Clause-1.0
 
+import Combine
 import Foundation
 @testable import LanguageSwitcherMacOS
 import XCTest
@@ -14,15 +15,15 @@ final class GitHubReleaseCheckerTests: XCTestCase {
         for tag in ["1.0.2", "v1.0.2", "V1.0.2", "1.0", "1", "0.9.9"] {
             XCTAssertEqual(evaluate(tag: tag), .upToDate, tag)
         }
-        XCTAssertEqual(evaluate(tag: "v1.0.10"), .updateAvailable(tag: "v1.0.10", url: releaseURL))
-        XCTAssertEqual(evaluate(tag: "2.0.0"), .updateAvailable(tag: "2.0.0", url: releaseURL))
+        XCTAssertEqual(evaluate(tag: "v1.0.10"), .updateAvailable(.init(tag: "v1.0.10", url: releaseURL)))
+        XCTAssertEqual(evaluate(tag: "2.0.0"), .updateAvailable(.init(tag: "2.0.0", url: releaseURL)))
     }
 
     func testNewReleaseKeepsItsURLAndFallsBackWhenURLIsMissing() {
         let tagURL = URL(string: "https://github.com/example/app/releases/tag/v1.1.0")!
         XCTAssertEqual(evaluate(tag: "v1.1.0", url: tagURL.absoluteString),
-                       .updateAvailable(tag: "v1.1.0", url: tagURL))
-        XCTAssertEqual(evaluate(tag: "v1.1.0"), .updateAvailable(tag: "v1.1.0", url: releaseURL))
+                       .updateAvailable(.init(tag: "v1.1.0", url: tagURL)))
+        XCTAssertEqual(evaluate(tag: "v1.1.0"), .updateAvailable(.init(tag: "v1.1.0", url: releaseURL)))
     }
 
     func testInvalidVersionsAndMalformedReleaseAreReported() {
@@ -43,78 +44,104 @@ final class GitHubReleaseCheckerTests: XCTestCase {
             .failure(.network))
         XCTAssertEqual(GitHubReleaseChecker.evaluate(data: nil, response: nil, error: nil,
             currentVersion: "1.0.2", fallbackReleaseURL: releaseURL), .failure(.invalidResponse))
-        for status in [403, 404, 429, 500] {
+        for status in [403, 500] {
             XCTAssertEqual(GitHubReleaseChecker.evaluate(data: nil, response: response(status), error: nil,
                 currentVersion: "1.0.2", fallbackReleaseURL: releaseURL), .failure(.http(status)))
+        }
+    }
+
+    func testUnpublishedAndRateLimitedResponses() {
+        let cases: [(Int, [String: String], ReleaseUpdateResult)] = [
+            (404, [:], .notPublished),
+            (429, [:], .failure(.rateLimited)),
+            (403, ["X-RateLimit-Remaining": "0"], .failure(.rateLimited)),
+            (403, ["Retry-After": "10"], .failure(.rateLimited))
+        ]
+        for (status, headers, expected) in cases {
+            let response = HTTPURLResponse(url: apiURL, statusCode: status, httpVersion: nil, headerFields: headers)!
+            XCTAssertEqual(GitHubReleaseChecker.evaluate(data: nil, response: response, error: nil,
+                currentVersion: "1.0.2", fallbackReleaseURL: releaseURL), expected)
+        }
+    }
+
+    func testRejectsDraftsPrereleasesAndUntrustedURLs() {
+        for flag in ["draft", "prerelease"] {
+            let data = try! JSONSerialization.data(withJSONObject: ["tag_name": "v1.1.0", flag: true])
+            XCTAssertEqual(GitHubReleaseChecker.evaluate(data: data, response: response(), error: nil,
+                currentVersion: "1.0.2", fallbackReleaseURL: releaseURL), .failure(.invalidRelease))
+        }
+        for url in ["https://example.org/installer", "https://github.com/other/app/releases/tag/v1.1.0",
+                    "https://github.com/example/app/releases/tag/", "https://github.com/example/app/releases/tag/../x",
+                    "https://github.com/example/app/releases/tag/v1.1.0?key=value"] {
+            XCTAssertEqual(evaluate(tag: "v1.1.0", url: url), .updateAvailable(.init(tag: "v1.1.0", url: releaseURL)))
         }
     }
 
     func testCheckUsesConfiguredRepositoryAndPreventsOverlappingRequests() async {
         let transport = ReleaseTransportFake()
         let checker = makeChecker(transport)
-        var results: [ReleaseUpdateResult] = []
-        checker.check { results.append($0) }
-        checker.check { results.append($0) }
-        XCTAssertTrue(checker.isChecking)
+        var states: [GitHubReleaseChecker.State] = []
+        let observation = checker.$state.sink { states.append($0) }
+        checker.startAutomaticChecks()
+        checker.check()
+        XCTAssertEqual(checker.state, .checking)
         XCTAssertEqual(transport.requests.count, 1)
         XCTAssertEqual(transport.requests[0].url, apiURL)
         XCTAssertEqual(transport.requests[0].value(forHTTPHeaderField: "Cache-Control"), "no-cache")
+        XCTAssertEqual(transport.requests[0].value(forHTTPHeaderField: "Accept"), "application/vnd.github+json")
+        XCTAssertEqual(transport.requests[0].value(forHTTPHeaderField: "User-Agent"), "Language Switcher Test")
         XCTAssertEqual(transport.requests[0].timeoutInterval, 15)
         XCTAssertTrue(transport.tasks[0].resumed)
         transport.completions[0](releaseData("v1.1.0"), response(), nil)
         await flushMainQueue()
-        XCTAssertFalse(checker.isChecking)
-        XCTAssertEqual(results, [.updateAvailable(tag: "v1.1.0", url: releaseURL)])
-        checker.check { results.append($0) }
-        XCTAssertEqual(transport.requests.count, 2)
+        XCTAssertEqual(states, [.idle, .checking, .finished(.updateAvailable(.init(tag: "v1.1.0", url: releaseURL)))])
+        XCTAssertEqual(checker.availableRelease?.url, releaseURL)
+        withExtendedLifetime(observation) {}
     }
 
-    func testCancelAndRestartIgnoreLateResultFromPreviousWindow() async {
+    func testCancelAndRestartIgnoreLateResultFromPreviousCheck() async {
         let transport = ReleaseTransportFake()
         let checker = makeChecker(transport)
-        var results: [ReleaseUpdateResult] = []
-        checker.check { results.append($0) }
+        checker.check()
         checker.cancel()
-        XCTAssertFalse(checker.isChecking)
+        XCTAssertEqual(checker.state, .idle)
         XCTAssertTrue(transport.tasks[0].cancelled)
-        checker.check { results.append($0) }
+        checker.check()
         transport.completions[0](releaseData("v9.0.0"), response(), nil)
         transport.completions[1](releaseData("v1.0.2"), response(), nil)
         await flushMainQueue()
-        XCTAssertFalse(checker.isChecking)
-        XCTAssertEqual(results, [.upToDate])
+        XCTAssertEqual(checker.state, .finished(.upToDate))
+        XCTAssertNil(checker.availableRelease)
     }
 
-    func testManualCheckCanJoinAnInProgressStartupCheck() async {
+    func testKeepsAvailableReleaseDuringRecheckAndFailureAndClearsItWhenUpToDate() async {
         let transport = ReleaseTransportFake()
         let checker = makeChecker(transport)
-        var startupResult: ReleaseUpdateResult?
-        var manualResult: ReleaseUpdateResult?
-        var starts = 0
-        checker.onCheckStarted = { starts += 1 }
-        checker.check { startupResult = $0 }
-        checker.check(joinInProgress: true) { manualResult = $0 }
+        var releases: [AvailableRelease?] = []
+        let observation = checker.$availableRelease.sink { releases.append($0) }
 
-        XCTAssertEqual(transport.requests.count, 1)
-        XCTAssertEqual(starts, 1)
+        checker.check()
         transport.completions[0](releaseData("v1.1.0"), response(), nil)
         await flushMainQueue()
+        let release = checker.availableRelease
+        XCTAssertEqual(release?.tag, "v1.1.0")
 
-        XCTAssertEqual(startupResult, .updateAvailable(tag: "v1.1.0", url: releaseURL))
-        XCTAssertEqual(manualResult, startupResult)
-    }
-
-    func testNetworkFailureCompletesAndAllowsRetry() async {
-        let transport = ReleaseTransportFake()
-        let checker = makeChecker(transport)
-        var result: ReleaseUpdateResult?
-        checker.check { result = $0 }
-        transport.completions[0](nil, nil, URLError(.timedOut))
+        checker.check()
+        XCTAssertEqual(checker.availableRelease, release)
+        transport.completions[1](nil, nil, URLError(.timedOut))
         await flushMainQueue()
-        XCTAssertEqual(result, .failure(.network))
-        XCTAssertFalse(checker.isChecking)
-        checker.check { _ in }
-        XCTAssertEqual(transport.requests.count, 2)
+        XCTAssertEqual(checker.state, .finished(.failure(.network)))
+        XCTAssertEqual(checker.availableRelease, release)
+
+        checker.check()
+        transport.completions[2](releaseData("v1.1.0"), response(), nil)
+        await flushMainQueue()
+        checker.check()
+        transport.completions[3](releaseData("v1.0.2"), response(), nil)
+        await flushMainQueue()
+        XCTAssertEqual(checker.state, .finished(.upToDate))
+        XCTAssertEqual(releases, [nil, release, nil])
+        withExtendedLifetime(observation) {}
     }
 
     func testAutomaticChecksStartImmediatelyAndRepeatUntilCancelled() async throws {
@@ -122,8 +149,8 @@ final class GitHubReleaseCheckerTests: XCTestCase {
         let checker = makeChecker(transport)
         let interval: Duration = .milliseconds(25)
         let clock = ContinuousClock()
-        checker.startAutomaticChecks(interval: interval) { _ in }
-        checker.startAutomaticChecks(interval: interval) { _ in }
+        checker.startAutomaticChecks(interval: interval)
+        checker.startAutomaticChecks(interval: interval)
         XCTAssertEqual(transport.requests.count, 1)
         try await clock.sleep(for: interval * 2)
         XCTAssertEqual(transport.requests.count, 1, "Automatic checks must not overlap")
@@ -144,13 +171,13 @@ final class GitHubReleaseCheckerTests: XCTestCase {
     func testDeinitializationCancelsPendingRequest() {
         let transport = ReleaseTransportFake()
         var checker: GitHubReleaseChecker? = makeChecker(transport)
-        checker?.check { _ in XCTFail("Released checker must not deliver results") }
+        checker?.check()
         checker = nil
         XCTAssertTrue(transport.tasks[0].cancelled)
     }
 
     private func makeChecker(_ transport: ReleaseTransportFake) -> GitHubReleaseChecker {
-        GitHubReleaseChecker(apiURL: apiURL, releaseURL: releaseURL, currentVersion: { "1.0.2" },
+        GitHubReleaseChecker(apiURL: apiURL, releaseURL: releaseURL, userAgent: "Language Switcher Test", currentVersion: { "1.0.2" },
             transport: { transport.makeTask($0, completion: $1) })
     }
 

@@ -499,8 +499,11 @@ extension TextShortcutSettingsWindowController {
         controller.showWindow(returningTo: { returnTargets.append("first") })
         controller.showWindow(returningTo: { returnTargets.append("latest") })
         controller.showWindow()
-        window.performClose(nil)
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        window.close()
+        let deadline = Date().addingTimeInterval(1)
+        while returnTargets.isEmpty && Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+        }
         try TextShortcutEditorSheetController.require(returnTargets == ["latest"],
                                                        "Closing a reused shortcut window must restore the latest source")
         print("PASS: shortcut settings focus loop, disabled controls and return to source")
@@ -509,7 +512,9 @@ extension TextShortcutSettingsWindowController {
 
 @main struct ShortcutEditorKeyboardTests {
     @MainActor static func main() {
-        NSApplication.shared.setActivationPolicy(.prohibited)
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        app.finishLaunching()
         do {
             try TextShortcutEditorSheetController.runKeyboardTests()
             try TextShortcutEditorSheetController.runInlineConflictTests()

@@ -17,8 +17,8 @@ import LanguageSwitcherMacOS
 @MainActor
 final class AboutWindowController: NSObject, NSWindowDelegate {
     private let identity: AppIdentity
-    private let updateAvailability: UpdateAvailability
-    private var updateAvailabilityObservation: AnyCancellable?
+    private let updates: GitHubReleaseChecker
+    private var updateObservation: AnyCancellable?
     private var aboutWindow: NSWindow?
     private var returnToSource: (() -> Void)?
     private var licensesWindowController: LicensesAcknowledgementsWindowController?
@@ -27,18 +27,11 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     private var updateProgressIndicator: NSProgressIndicator?
     private var updateStatusLabel: NSTextField?
     private weak var contentStack: NSStackView?
-    private let requestUpdateCheck: () -> Void
-
-    init(
-        identity: AppIdentity,
-        updateAvailability: UpdateAvailability,
-        requestUpdateCheck: @escaping () -> Void
-    ) {
+    init(identity: AppIdentity, updates: GitHubReleaseChecker) {
         self.identity = identity
-        self.updateAvailability = updateAvailability
-        self.requestUpdateCheck = requestUpdateCheck
+        self.updates = updates
         super.init()
-        updateAvailabilityObservation = updateAvailability.$state.dropFirst().sink { [weak self] state in
+        updateObservation = updates.$state.dropFirst().sink { [weak self] state in
             guard let self, self.aboutWindow != nil else { return }
             self.refreshUpdateControls(state: state)
         }
@@ -49,7 +42,7 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
             aboutWindow = makeAboutWindow()
         }
         if let source { returnToSource = source }
-        refreshUpdateControls(state: updateAvailability.state)
+        refreshUpdateControls(state: updates.state)
 
         NSApp.activate(ignoringOtherApps: true)
         if let aboutWindow {
@@ -118,18 +111,18 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     @objc private func updateButtonPressed() {
-        requestUpdateCheck()
+        updates.check()
     }
 
     @objc private func openRelease() {
-        guard let release = updateAvailability.release else { return }
+        guard let release = updates.availableRelease else { return }
         NSWorkspace.shared.open(release.url)
     }
 
-    private func refreshUpdateControls(state: UpdateAvailability.State) {
+    private func refreshUpdateControls(state: GitHubReleaseChecker.State) {
         let checking: Bool
         if case .checking = state { checking = true } else { checking = false }
-        let release = updateAvailability.release
+        let release = updates.availableRelease
         updateButton?.title = localized(checking ? "Checking…" : "Check for Updates")
         updateButton?.isEnabled = !checking
         let releaseTitle = release.map { localizedFormat("%@ is available", $0.tag) }
@@ -144,6 +137,9 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
         case .finished(.upToDate):
             updateStatusLabel?.textColor = AppStyle.Color.success
             status = localized("You’re up to date.")
+        case .finished(.notPublished):
+            updateStatusLabel?.textColor = .secondaryLabelColor
+            status = localized("The repository or a public release has not been published yet.")
         case let .finished(.failure(failure)):
             updateStatusLabel?.textColor = .systemRed
             status = updateFailureText(failure)
@@ -168,6 +164,8 @@ final class AboutWindowController: NSObject, NSWindowDelegate {
             return localized("GitHub returned invalid update information.")
         case .currentVersion:
             return localized("Could not determine the installed app version.")
+        case .rateLimited:
+            return localized("GitHub’s request limit was reached. Please try again later.")
         case let .http(status):
             return localizedFormat("GitHub returned HTTP %d.", status)
         }

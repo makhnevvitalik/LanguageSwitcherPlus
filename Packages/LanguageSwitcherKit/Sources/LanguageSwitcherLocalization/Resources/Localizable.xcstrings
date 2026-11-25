@@ -1561,6 +1561,16 @@
         }
       }
     },
+    "GitHub’s request limit was reached. Please try again later.": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Лимит запросов GitHub. Попробуйте позже."
+          }
+        }
+      }
+    },
     "GitHub returned HTTP %d.": {
       "localizations": {
         "ru": {
@@ -2337,6 +2347,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Удерживаемый и нажимаемый модификаторы должны отличаться."
+          }
+        }
+      }
+    },
+    "The repository or a public release has not been published yet.": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Публичного релиза пока нет."
           }
         }
       }

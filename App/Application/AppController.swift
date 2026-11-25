@@ -8,6 +8,7 @@ import LanguageSwitcherMacOS
 
 @MainActor
 final class AppController {
+    private static let textShortcutPermissionSetupPendingKey = "textShortcutPermissions.setupPending"
     private static let standaloneCommand = TextShortcutChord(modifiers: .command, functionKey: nil)
 
     private let inputSourceRepository: TISInputSourceRepository
@@ -211,7 +212,23 @@ final class AppController {
         textShortcutStore.shortcut(for: action)
     }
 
-    var hasConfiguredTextShortcuts: Bool {
+    private(set) var isTextShortcutPermissionSetupPending: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.textShortcutPermissionSetupPendingKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.textShortcutPermissionSetupPendingKey) }
+    }
+
+    var textShortcutPermissionSetupStep: TextShortcutPermissionSetupStep {
+        TextShortcutPermissionSetup.nextStep(
+            inputMonitoringAllowed: inputMonitoringPermission.isAllowed,
+            accessibilityAllowed: isAccessibilityAllowed
+        )
+    }
+
+    func finishTextShortcutPermissionSetup() {
+        isTextShortcutPermissionSetupPending = false
+    }
+
+    private var hasConfiguredTextShortcuts: Bool {
         TextAction.allCases.contains {
             textShortcutStore.shortcut(for: $0) != nil
         }
@@ -240,9 +257,13 @@ final class AppController {
             reservedShortcuts: reservedTextShortcuts,
             reviewedConflict: reviewedConflict
         )
-        if result == .updated {
-            configureKeyboardMonitor()
+        guard result == .updated else { return result }
+        if shortcut == nil {
+            if !hasConfiguredTextShortcuts { finishTextShortcutPermissionSetup() }
+        } else if textShortcutPermissionSetupStep != .complete {
+            isTextShortcutPermissionSetupPending = true
         }
+        configureKeyboardMonitor()
         return result
     }
 
